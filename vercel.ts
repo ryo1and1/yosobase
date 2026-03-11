@@ -1,0 +1,26 @@
+const productionCrons = [
+  {
+    path: "/api/cron/npb-sync?mode=full",
+    schedule: "0 20 * * *"
+  },
+  {
+    path: "/api/cron/npb-sync?mode=results_only",
+    schedule: "*/10 8-16 * * *"
+  },
+  {
+    path: "/api/cron/npb-sync?mode=results_only",
+    schedule: "5 17-23,0-7 * * *"
+  },
+  {
+    path: "/api/cron/settle",
+    schedule: "2-59/10 8-16 * * *"
+  },
+  {
+    path: "/api/cron/settle",
+    schedule: "7 17-23,0-7 * * *"
+  }
+];
+
+export const config = {
+  crons: process.env.VERCEL_ENV === "production" ? productionCrons : []
+};
