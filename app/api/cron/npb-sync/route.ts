@@ -94,7 +94,7 @@ function parseSyncMode(request: NextRequest): SyncMode {
   return "full";
 }
 
-export async function POST(request: NextRequest) {
+async function handleCronRequest(request: NextRequest) {
   try {
     if (!isCronAuthorized(request)) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -113,4 +113,12 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "failed to sync npb data";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleCronRequest(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleCronRequest(request);
 }
