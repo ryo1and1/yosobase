@@ -3,11 +3,12 @@ import Link from "next/link";
 import "@/app/globals.css";
 import { HeaderAccountMenu } from "@/components/header-account-menu";
 import { SiteFooter } from "@/components/site-footer";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { fetchHeaderAccount } from "@/lib/data";
 import { getViewerUserId } from "@/lib/guest-user";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(getAppBaseUrl()),
   title: {
     default: "YosoBase | NPB予想ゲーム",
     template: "%s | YosoBase"
