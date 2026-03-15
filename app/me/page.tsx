@@ -183,11 +183,13 @@ export default async function MePage() {
                     <tr key={`${item.game_id}:${item.settled_at}`}>
                       <td>{formatJstDateTime(item.settled_at)}</td>
                       <td>
-                        <div className="profile-matchup">
-                          <span>{item.home_team_name}</span>
-                          <small>vs</small>
-                          <span>{item.away_team_name}</span>
-                        </div>
+                        <Link href={`/games/${item.game_id}?focus=prediction`} className="profile-matchup-link">
+                          <div className="profile-matchup">
+                            <span>{item.home_team_name}</span>
+                            <small>vs</small>
+                            <span>{item.away_team_name}</span>
+                          </div>
+                        </Link>
                       </td>
                       <td>
                         <span className="profile-pill">{item.pick_summary}</span>
