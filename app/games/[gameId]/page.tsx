@@ -53,6 +53,7 @@ export default async function GameDetailPage({
   const winnerTeam =
     game.winner === "home" ? game.home_team.name : game.winner === "away" ? game.away_team.name : null;
   const isAuthenticated = Boolean(authenticatedUserId);
+  const isWinningPrediction = (detail.settlement?.points_delta ?? 0) > 0;
   const loginHref = `/login?returnTo=${encodeURIComponent(`/games/${game.id}`)}&focus=prediction`;
 
   return (
@@ -122,7 +123,7 @@ export default async function GameDetailPage({
         </div>
 
         {game.status === "final" && (
-          <p className="game-detail-result-banner">
+          <p className={`game-detail-result-banner${isWinningPrediction ? " is-hit" : ""}`}>
             {winnerTeam ? `${winnerTeam} が勝利しました。` : "この試合は引き分け、または勝敗なしで終了しました。"}
           </p>
         )}
@@ -133,6 +134,8 @@ export default async function GameDetailPage({
           gameId={game.id}
           homeTeamName={game.home_team.name}
           awayTeamName={game.away_team.name}
+          scoreHome={game.score_home}
+          scoreAway={game.score_away}
           startAt={game.start_at}
           status={game.status}
           winner={game.winner}

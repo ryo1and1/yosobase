@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { Lexend } from "next/font/google";
+import { HomeDatePicker } from "@/components/home-date-picker";
 import { fetchGamesByDate } from "@/lib/data";
 import { getAuthenticatedViewerUserId, getViewerUserId } from "@/lib/guest-user";
 import { formatJstDate, formatJstTime, todayJst } from "@/lib/time";
@@ -226,6 +227,7 @@ export default async function HomePage({
             <Link href={`/?date=${nextDate}`} className="home-date-btn">
               翌日
             </Link>
+            <HomeDatePicker value={date} />
           </div>
         </div>
 
@@ -237,7 +239,7 @@ export default async function HomePage({
         ) : (
           <div className="home-upcoming-list">
             {dayGames.map((game) => (
-              <article key={game.id} className="home-upcoming-row">
+              <article key={game.id} className={`home-upcoming-row${game.user_has_prediction ? " is-predicted" : ""}`}>
                 <div className="home-upcoming-time">
                   <span>開始時刻</span>
                   <strong>{formatJstTime(game.start_at)}</strong>
