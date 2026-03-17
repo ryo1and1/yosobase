@@ -1,6 +1,5 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 import "@/app/globals.css";
 import { HeaderAccountMenu } from "@/components/header-account-menu";
 import { LoginBonusNotifier } from "@/components/login-bonus-notifier";
@@ -49,16 +48,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ja">
-      <body suppressHydrationWarning>
+      <head>
         {adSenseClientId ? (
-          <Script
-            id="google-adsense-script"
+          <script
             async
-            strategy="afterInteractive"
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adSenseClientId}`}
             crossOrigin="anonymous"
           />
         ) : null}
+      </head>
+      <body suppressHydrationWarning>
         <div className="orb orb-a" aria-hidden />
         <div className="orb orb-b" aria-hidden />
         <LoginBonusNotifier enabled={Boolean(viewerUserId)} />
