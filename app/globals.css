@@ -2834,6 +2834,13 @@ select.admin-input {
   padding: 0.85rem;
 }
 
+.auth-form-note {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
 .auth-field {
   display: grid;
   gap: 0.3rem;
@@ -2917,6 +2924,34 @@ select.admin-input {
   color: #991b1b;
   background: #fee2e2;
   border: 1px solid #fecaca;
+}
+
+.auth-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.auth-text-link {
+  color: #2563eb;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.auth-text-link:hover {
+  color: #1d4ed8;
+}
+
+.auth-inline-button {
+  width: fit-content;
+}
+
+.auth-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.45rem;
 }
 
 .legal-page {

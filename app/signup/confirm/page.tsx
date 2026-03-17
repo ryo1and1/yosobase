@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { LoginForm } from "@/components/auth/login-form";
+import { SignupConfirmPanel } from "@/components/auth/signup-confirm-panel";
 import { buildPostAuthPath, sanitizeFocus, sanitizeReturnTo } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function LoginPage({
+export default async function SignupConfirmPage({
   searchParams
 }: {
-  searchParams: Promise<{ returnTo?: string; focus?: string; error?: string; message?: string }>;
+  searchParams: Promise<{ returnTo?: string; focus?: string }>;
 }) {
   const params = await searchParams;
   const returnTo = sanitizeReturnTo(params.returnTo);
@@ -20,5 +20,5 @@ export default async function LoginPage({
     redirect(buildPostAuthPath(returnTo, focus));
   }
 
-  return <LoginForm returnTo={returnTo} focus={focus} errorCode={params.error ?? null} messageCode={params.message ?? null} />;
+  return <SignupConfirmPanel returnTo={returnTo} focus={focus} />;
 }

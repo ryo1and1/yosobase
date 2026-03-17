@@ -18,6 +18,7 @@ export function getAppBaseUrl(): string {
 
   if (isPreview) {
     return (
+      normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ??
       normalizeUrl(process.env.VERCEL_BRANCH_URL) ??
       normalizeUrl(process.env.VERCEL_URL) ??
       normalizeUrl(process.env.NEXT_PUBLIC_APP_URL) ??
@@ -26,6 +27,7 @@ export function getAppBaseUrl(): string {
   }
 
   return (
+    normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ??
     normalizeUrl(process.env.NEXT_PUBLIC_APP_URL) ??
     normalizeUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL) ??
     normalizeUrl(process.env.VERCEL_URL) ??
