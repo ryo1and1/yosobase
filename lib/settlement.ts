@@ -6,6 +6,7 @@ import type { PredictionAllocation, Side } from "@/lib/types";
 type FinalGame = {
   id: string;
   season_year: number;
+  status: "final" | "canceled";
   winner: Side | null;
   score_home: number | null;
   score_away: number | null;
@@ -33,7 +34,7 @@ export async function runSettlementBatch() {
   };
 
   try {
-    const { data: games, error: gamesError } = await supabase.rpc("list_unsettled_final_games");
+    const { data: games, error: gamesError } = await supabase.rpc("list_unsettled_resolved_games");
 
     if (gamesError) {
       throw new Error(gamesError.message);
@@ -42,8 +43,6 @@ export async function runSettlementBatch() {
     totals.gamesScanned = games?.length ?? 0;
 
     for (const game of (games ?? []) as FinalGame[]) {
-      if (!game.winner) continue;
-
       const { data: bets, error: betError } = await supabase
         .from("prediction_bets")
         .select("id, game_id, user_id, option, stake_points")
@@ -72,15 +71,46 @@ export async function runSettlementBatch() {
       });
       totals.predictionsScanned += byUser.size;
 
+      if (game.status === "canceled") {
+        for (const [userId, userBets] of byUser.entries()) {
+          const refundPoints = userBets.reduce((sum, row) => sum + row.stake_points, 0);
+
+          const { data: applied, error: applyError } = await supabase.rpc("apply_canceled_refund_atomic", {
+            p_game_id: game.id,
+            p_user_id: userId,
+            p_season_year: game.season_year,
+            p_refund_points: refundPoints
+          });
+
+          if (applyError) {
+            totals.errors += 1;
+            continue;
+          }
+
+          if (!applied) {
+            totals.conflictsSkipped += 1;
+            continue;
+          }
+
+          totals.settlementsInserted += 1;
+          totals.userStatsUpdated += 1;
+        }
+
+        continue;
+      }
+
+      if (!game.winner) continue;
+
       for (const [userId, userBets] of byUser.entries()) {
         const stakePoints = userBets.reduce((sum, row) => sum + row.stake_points, 0);
-        let payout = 0;
+        let grossPayout = 0;
         userBets.forEach((row) => {
           if (!winOptions.has(row.option)) return;
           const odd = oddsByOption.get(row.option) ?? 0;
-          payout += Math.round(row.stake_points * odd);
+          grossPayout += Math.round(row.stake_points * odd);
         });
-        const isCorrect = payout > 0;
+        const netProfit = grossPayout - stakePoints;
+        const isCorrect = netProfit > 0;
 
         const { data: applied, error: applyError } = await supabase.rpc("apply_settlement_atomic", {
           p_game_id: game.id,
@@ -88,7 +118,7 @@ export async function runSettlementBatch() {
           p_season_year: game.season_year,
           p_is_correct: isCorrect,
           p_stake_points: stakePoints,
-          p_points_delta: payout
+          p_points_delta: netProfit
         });
 
         if (applyError) {

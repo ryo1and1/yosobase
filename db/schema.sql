@@ -9,7 +9,8 @@ create table if not exists public.users (
   email text,
   password_hash text,
   favorite_team_id text,
-  point_balance int not null default 30000,
+  point_balance int not null default 10000,
+  last_login_bonus_date date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -19,7 +20,8 @@ alter table public.users
   add column if not exists email text,
   add column if not exists password_hash text,
   add column if not exists favorite_team_id text,
-  add column if not exists point_balance int not null default 30000;
+  add column if not exists point_balance int not null default 10000,
+  add column if not exists last_login_bonus_date date;
 
 alter table public.users
   drop column if exists is_guest;
@@ -204,8 +206,9 @@ create table if not exists public.settlements (
   user_id uuid not null references public.users(id) on delete cascade,
   is_correct boolean not null,
   stake_points int not null default 0 check (stake_points >= 0),
-  points_delta int not null check (points_delta >= 0),
+  points_delta int not null,
   settled_at timestamptz not null default now(),
+  constraint settlements_points_delta_check check (points_delta >= -stake_points),
   constraint uq_settlements_game_user unique (game_id, user_id)
 );
 
@@ -214,6 +217,27 @@ alter table public.settlements
 
 alter table public.settlements
   add column if not exists stake_points int not null default 0;
+
+do $$
+declare
+  v_constraint_name text;
+begin
+  for v_constraint_name in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.settlements'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) like '%points_delta >= 0%'
+  loop
+    execute format('alter table public.settlements drop constraint %I', v_constraint_name);
+  end loop;
+end $$;
+
+alter table public.settlements
+  drop constraint if exists settlements_points_delta_check;
+
+alter table public.settlements
+  add constraint settlements_points_delta_check check (points_delta >= -stake_points);
 
 alter table public.settlements
   drop constraint if exists uq_settlements_prediction;
@@ -358,13 +382,13 @@ begin
   values (
     p_user_id,
     p_season_year,
-    greatest(p_points, 0),
+    p_points,
     greatest(p_predictions, 0),
     greatest(p_correct, 0)
   )
   on conflict (user_id, season_year)
   do update set
-    points_total = greatest(public.user_stats.points_total + p_points, 0),
+    points_total = public.user_stats.points_total + p_points,
     predictions_total = greatest(public.user_stats.predictions_total + p_predictions, 0),
     correct_total = greatest(public.user_stats.correct_total + p_correct, 0),
     updated_at = now();
@@ -627,6 +651,57 @@ begin
 end;
 $$;
 
+create or replace function public.grant_daily_login_bonus(
+  p_user_id uuid,
+  p_today_jst date,
+  p_bonus_points int default 200
+)
+returns table(
+  applied boolean,
+  point_balance int,
+  bonus_points int
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.users%rowtype;
+begin
+  if p_bonus_points <= 0 then
+    raise exception 'invalid login bonus points';
+  end if;
+
+  select *
+  into v_user
+  from public.users
+  where id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'user not found';
+  end if;
+
+  if v_user.last_login_bonus_date = p_today_jst then
+    return query
+    select false, v_user.point_balance, 0;
+    return;
+  end if;
+
+  update public.users
+  set
+    point_balance = point_balance + p_bonus_points,
+    last_login_bonus_date = p_today_jst,
+    updated_at = now()
+  where id = p_user_id
+  returning public.users.point_balance
+  into v_user.point_balance;
+
+  return query
+  select true, v_user.point_balance, p_bonus_points;
+end;
+$$;
+
 create or replace function public.apply_settlement_atomic(
   p_game_id uuid,
   p_user_id uuid,
@@ -642,13 +717,22 @@ set search_path = public
 as $$
 declare
   v_existing public.settlements%rowtype;
-  v_points_adjustment int := 0;
+  v_balance_adjustment int := 0;
+  v_stats_points_adjustment int := 0;
   v_prediction_adjustment int := 0;
   v_correct_adjustment int := 0;
+  v_new_payout_points int := 0;
+  v_existing_payout_points int := 0;
+  v_existing_counts_prediction boolean := false;
 begin
-  if p_stake_points < 0 or p_points_delta < 0 then
+  if p_stake_points < 0 or p_points_delta < -p_stake_points then
     raise exception 'invalid settlement values';
   end if;
+  if p_is_correct <> (p_points_delta > 0) then
+    raise exception 'invalid settlement correctness';
+  end if;
+
+  v_new_payout_points := p_stake_points + p_points_delta;
 
   perform 1
   from public.users
@@ -684,10 +768,23 @@ begin
       p_points_delta
     );
 
-    v_points_adjustment := p_points_delta;
+    v_balance_adjustment := v_new_payout_points;
+    v_stats_points_adjustment := p_points_delta;
     v_prediction_adjustment := 1;
     v_correct_adjustment := case when p_is_correct then 1 else 0 end;
   else
+    v_existing_counts_prediction :=
+      not (
+        v_existing.is_correct = false
+        and v_existing.points_delta = v_existing.stake_points
+        and v_existing.points_delta > 0
+      );
+    v_existing_payout_points :=
+      case
+        when v_existing_counts_prediction then greatest(v_existing.stake_points + v_existing.points_delta, 0)
+        else v_existing.points_delta
+      end;
+
     if v_existing.is_correct = p_is_correct
        and v_existing.stake_points = p_stake_points
        and v_existing.points_delta = p_points_delta then
@@ -702,25 +799,37 @@ begin
       settled_at = now()
     where id = v_existing.id;
 
-    v_points_adjustment := p_points_delta - v_existing.points_delta;
+    v_balance_adjustment := v_new_payout_points - v_existing_payout_points;
+    v_stats_points_adjustment :=
+      p_points_delta -
+      case
+        when v_existing_counts_prediction then v_existing.points_delta
+        else 0
+      end;
+    v_prediction_adjustment :=
+      1 -
+      case
+        when v_existing_counts_prediction then 1
+        else 0
+      end;
     v_correct_adjustment :=
       (case when p_is_correct then 1 else 0 end) -
-      (case when v_existing.is_correct then 1 else 0 end);
+      (case when v_existing_counts_prediction and v_existing.is_correct then 1 else 0 end);
   end if;
 
-  if v_points_adjustment <> 0 then
+  if v_balance_adjustment <> 0 then
     update public.users
-    set point_balance = point_balance + v_points_adjustment
+    set point_balance = point_balance + v_balance_adjustment
     where id = p_user_id;
   end if;
 
-  if v_points_adjustment <> 0
+  if v_stats_points_adjustment <> 0
      or v_prediction_adjustment <> 0
      or v_correct_adjustment <> 0 then
     perform public.apply_user_stats_delta(
       p_user_id,
       p_season_year,
-      v_points_adjustment,
+      v_stats_points_adjustment,
       v_prediction_adjustment,
       v_correct_adjustment
     );
@@ -763,8 +872,177 @@ as $$
   order by g.updated_at asc, g.id asc;
 $$;
 
+create or replace function public.apply_canceled_refund_atomic(
+  p_game_id uuid,
+  p_user_id uuid,
+  p_season_year int,
+  p_refund_points int
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing public.settlements%rowtype;
+  v_balance_adjustment int := 0;
+  v_stats_points_adjustment int := 0;
+  v_prediction_adjustment int := 0;
+  v_correct_adjustment int := 0;
+  v_existing_payout_points int := 0;
+  v_existing_counts_prediction boolean := false;
+begin
+  if p_refund_points < 0 then
+    raise exception 'invalid refund values';
+  end if;
+
+  perform 1
+  from public.users
+  where id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'user not found';
+  end if;
+
+  select *
+  into v_existing
+  from public.settlements
+  where game_id = p_game_id
+    and user_id = p_user_id
+  for update;
+
+  if not found then
+    insert into public.settlements (
+      prediction_id,
+      game_id,
+      user_id,
+      is_correct,
+      stake_points,
+      points_delta
+    )
+    values (
+      null,
+      p_game_id,
+      p_user_id,
+      false,
+      p_refund_points,
+      p_refund_points
+    );
+
+    v_balance_adjustment := p_refund_points;
+  else
+    v_existing_counts_prediction :=
+      not (
+        v_existing.is_correct = false
+        and v_existing.points_delta = v_existing.stake_points
+        and v_existing.points_delta > 0
+      );
+    v_existing_payout_points :=
+      case
+        when v_existing_counts_prediction then greatest(v_existing.stake_points + v_existing.points_delta, 0)
+        else v_existing.points_delta
+      end;
+
+    if v_existing.is_correct = false
+       and v_existing.stake_points = p_refund_points
+       and v_existing.points_delta = p_refund_points then
+      return false;
+    end if;
+
+    update public.settlements
+    set
+      is_correct = false,
+      stake_points = p_refund_points,
+      points_delta = p_refund_points,
+      settled_at = now()
+    where id = v_existing.id;
+
+    v_balance_adjustment := p_refund_points - v_existing_payout_points;
+    v_stats_points_adjustment :=
+      0 -
+      case
+        when v_existing_counts_prediction then v_existing.points_delta
+        else 0
+      end;
+    v_prediction_adjustment :=
+      0 -
+      case
+        when v_existing_counts_prediction then 1
+        else 0
+      end;
+    v_correct_adjustment :=
+      0 -
+      case
+        when v_existing_counts_prediction and v_existing.is_correct then 1
+        else 0
+      end;
+  end if;
+
+  if v_balance_adjustment <> 0 then
+    update public.users
+    set point_balance = point_balance + v_balance_adjustment
+    where id = p_user_id;
+  end if;
+
+  if v_stats_points_adjustment <> 0
+     or v_prediction_adjustment <> 0
+     or v_correct_adjustment <> 0 then
+    perform public.apply_user_stats_delta(
+      p_user_id,
+      p_season_year,
+      v_stats_points_adjustment,
+      v_prediction_adjustment,
+      v_correct_adjustment
+    );
+  end if;
+
+  return true;
+end;
+$$;
+
+create or replace function public.list_unsettled_resolved_games()
+returns table(
+  id uuid,
+  season_year int,
+  status public.game_status,
+  winner public.winner_side,
+  score_home int,
+  score_away int
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    g.id,
+    g.season_year,
+    g.status,
+    g.winner,
+    g.score_home,
+    g.score_away
+  from public.games g
+  where (
+      (g.status = 'final' and g.winner is not null)
+      or g.status = 'canceled'
+    )
+    and exists (
+      select 1
+      from public.prediction_bets pb
+      left join public.settlements s
+        on s.game_id = pb.game_id
+       and s.user_id = pb.user_id
+      where pb.game_id = g.id
+        and (s.id is null or s.settled_at < g.updated_at)
+    )
+  order by g.updated_at asc, g.id asc;
+$$;
+
 revoke all on function public.apply_user_stats_delta(uuid, int, int, int, int) from public, anon, authenticated;
 grant execute on function public.apply_user_stats_delta(uuid, int, int, int, int) to service_role;
+
+revoke all on function public.grant_daily_login_bonus(uuid, date, int) from public, anon, authenticated;
+grant execute on function public.grant_daily_login_bonus(uuid, date, int) to service_role;
 
 revoke all on function public.check_rate_limit(text, int, int) from public, anon, authenticated;
 grant execute on function public.check_rate_limit(text, int, int) to service_role;
@@ -778,8 +1056,14 @@ grant execute on function public.delete_prediction_bets_atomic(uuid, uuid, int) 
 revoke all on function public.apply_settlement_atomic(uuid, uuid, int, boolean, int, int) from public, anon, authenticated;
 grant execute on function public.apply_settlement_atomic(uuid, uuid, int, boolean, int, int) to service_role;
 
+revoke all on function public.apply_canceled_refund_atomic(uuid, uuid, int, int) from public, anon, authenticated;
+grant execute on function public.apply_canceled_refund_atomic(uuid, uuid, int, int) to service_role;
+
 revoke all on function public.list_unsettled_final_games() from public, anon, authenticated;
 grant execute on function public.list_unsettled_final_games() to service_role;
+
+revoke all on function public.list_unsettled_resolved_games() from public, anon, authenticated;
+grant execute on function public.list_unsettled_resolved_games() to service_role;
 
 alter table public.users enable row level security;
 alter table public.teams enable row level security;

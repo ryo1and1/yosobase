@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Lexend } from "next/font/google";
+import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { PredictionPanel } from "@/components/prediction-panel";
+import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchGameDetail } from "@/lib/data";
 import { getAuthenticatedViewerUserId } from "@/lib/guest-user";
 import { formatJstDateTime, minutesUntil } from "@/lib/time";
@@ -54,7 +56,9 @@ export default async function GameDetailPage({
     game.winner === "home" ? game.home_team.name : game.winner === "away" ? game.away_team.name : null;
   const isAuthenticated = Boolean(authenticatedUserId);
   const isWinningPrediction = (detail.settlement?.points_delta ?? 0) > 0;
+  const isCanceledRefunded = game.status === "canceled" && detail.settlement !== null;
   const loginHref = `/login?returnTo=${encodeURIComponent(`/games/${game.id}`)}&focus=prediction`;
+  const gameAd = getAdSenseUnitConfig("game");
 
   return (
     <div className={`${lexend.className} game-detail-page`}>
@@ -115,6 +119,8 @@ export default async function GameDetailPage({
             <p>
               {winnerTeam
                 ? `${winnerTeam} 勝利`
+                : game.status === "canceled"
+                  ? "中止"
                 : game.status === "final"
                   ? "引き分け/勝敗なし"
                   : "未確定"}
@@ -125,6 +131,11 @@ export default async function GameDetailPage({
         {game.status === "final" && (
           <p className={`game-detail-result-banner${isWinningPrediction ? " is-hit" : ""}`}>
             {winnerTeam ? `${winnerTeam} が勝利しました。` : "この試合は引き分け、または勝敗なしで終了しました。"}
+          </p>
+        )}
+        {game.status === "canceled" && (
+          <p className="game-detail-result-banner is-canceled">
+            {isCanceledRefunded ? "この試合は中止となり、予想ポイントは返金済みです。" : "この試合は中止となりました。"}
           </p>
         )}
       </section>
@@ -141,6 +152,7 @@ export default async function GameDetailPage({
           winner={game.winner}
           mode={detail.mode}
           odds={detail.odds}
+          publicShareByMode={detail.publicShareByMode}
           initialAllocations={detail.user_bets}
           pointBalance={detail.point_balance ?? 0}
           settlementPoints={detail.settlement?.points_delta ?? null}
@@ -161,6 +173,8 @@ export default async function GameDetailPage({
           </div>
         </section>
       )}
+
+      {gameAd ? <AdSenseUnit client={gameAd.client} slot={gameAd.slot} className="game-detail-ad-slot" /> : null}
 
       <section className="game-detail-links">
         <Link href="/" className="home-btn home-btn-outline">

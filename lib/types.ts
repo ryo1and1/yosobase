@@ -52,12 +52,29 @@ export type PredictionAllocation = {
   stake_points: number;
 };
 
+// Internal odds share mixes priors and is only used for odds calculation.
 export type OddsItem = {
   option: PredictionOption;
   share: number;
   odds: number;
   total_stake: number;
 };
+
+// Public share is user-facing and uses only real user bet points.
+export type PublicShareItem = {
+  option: PredictionOption;
+  publicShare: number;
+  publicSharePercent: number;
+  publicBetPoints: number;
+};
+
+export type PublicShareSummary = {
+  publicBetPointsTotal: number;
+  publicPredictorCount: number;
+  items: PublicShareItem[];
+};
+
+export type PublicShareSummaryByMode = Record<PredictionMode, PublicShareSummary>;
 
 export type RankingItem = {
   user_id: string;
@@ -77,6 +94,7 @@ export type MeHistoryItem = {
   home_team_name: string;
   away_team_name: string;
   pick_summary: string;
+  status: GameStatus;
   winner: Side | null;
   points_delta: number;
   stake_points: number;

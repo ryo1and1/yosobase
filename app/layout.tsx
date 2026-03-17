@@ -1,8 +1,11 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import "@/app/globals.css";
 import { HeaderAccountMenu } from "@/components/header-account-menu";
+import { LoginBonusNotifier } from "@/components/login-bonus-notifier";
 import { SiteFooter } from "@/components/site-footer";
+import { getAdSenseClientId, isAdSenseProductionEnabled } from "@/lib/ads";
 import { getAppBaseUrl } from "@/lib/app-url";
 import { fetchHeaderAccount } from "@/lib/data";
 import { getViewerUserId } from "@/lib/guest-user";
@@ -28,6 +31,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const viewerUserId = await getViewerUserId();
+  const adSenseClientId = isAdSenseProductionEnabled() ? getAdSenseClientId() : null;
   let headerPoints = 0;
   let headerAvatarLabel = "AC";
 
@@ -46,8 +50,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ja">
       <body suppressHydrationWarning>
+        {adSenseClientId ? (
+          <Script
+            id="google-adsense-script"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adSenseClientId}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
         <div className="orb orb-a" aria-hidden />
         <div className="orb orb-b" aria-hidden />
+        <LoginBonusNotifier enabled={Boolean(viewerUserId)} />
         <header className="site-header">
           <div className="container header-inner">
             <div className="header-left">

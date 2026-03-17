@@ -1,8 +1,9 @@
 import { createServiceClient } from "@/lib/supabase";
-import { computeOdds, defaultModeForBets, optionLabel, optionToBroadSide } from "@/lib/odds";
+import { computeOdds, computePublicShareSummaryByMode, defaultModeForBets, optionLabel, optionToBroadSide } from "@/lib/odds";
 import { publicUserCodeFromId } from "@/lib/public-user-code";
 import { currentJstYear, getDateRangeJst, todayJst } from "@/lib/time";
 import type {
+  GameStatus,
   GameListItem,
   GameWithTeams,
   MeHistoryItem,
@@ -28,11 +29,13 @@ type GameRow = {
 
 type PredictionBetRow = {
   game_id: string;
+  user_id?: string;
   option: PredictionAllocation["option"];
   stake_points: number;
 };
 
 type SettlementRow = {
+  game_id: string;
   user_id: string;
   points_delta: number;
   is_correct: boolean;
@@ -57,6 +60,11 @@ type SeasonStatRow = {
   points_total: number | null;
   predictions_total: number | null;
   correct_total: number | null;
+};
+
+type GameStatusRow = {
+  id: string;
+  status: string;
 };
 
 type UserIdentity = {
@@ -84,6 +92,27 @@ function mapGame(row: GameRow): GameWithTeams {
     home_team: normalizeTeam(row.home_team),
     away_team: normalizeTeam(row.away_team)
   };
+}
+
+async function fetchGameStatusMap(
+  supabase: ReturnType<typeof createServiceClient>,
+  gameIds: string[]
+): Promise<Map<string, GameStatus>> {
+  const uniqueIds = Array.from(new Set(gameIds));
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase.from("games").select("id, status").in("id", uniqueIds);
+  if (error) {
+    throw new Error(`Failed to fetch game statuses: ${error.message}`);
+  }
+
+  const statusMap = new Map<string, GameStatus>();
+  (data as GameStatusRow[] | null)?.forEach((row) => {
+    statusMap.set(row.id, row.status as GameStatus);
+  });
+  return statusMap;
 }
 
 export async function fetchGamesByDate(dateText: string, viewerUserId: string | null): Promise<GameListItem[]> {
@@ -194,7 +223,7 @@ export async function fetchGameDetail(gameId: string, viewerUserId: string | nul
   const game = mapGame(data as GameRow);
   const { data: allBetRows, error: allBetError } = await supabase
     .from("prediction_bets")
-    .select("game_id, option, stake_points")
+    .select("game_id, user_id, option, stake_points")
     .eq("game_id", game.id);
 
   if (allBetError) {
@@ -204,12 +233,14 @@ export async function fetchGameDetail(gameId: string, viewerUserId: string | nul
   const allBets = (allBetRows as PredictionBetRow[] | null) ?? [];
   const mode: PredictionMode = defaultModeForBets(allBets);
   const odds = computeOdds(mode, allBets);
+  const publicShareByMode = computePublicShareSummaryByMode(allBets);
 
   if (!viewerUserId) {
     return {
       game,
       mode,
       odds,
+      publicShareByMode,
       user_prediction: null as Side | null,
       user_bets: [] as PredictionAllocation[],
       point_balance: null as number | null,
@@ -258,6 +289,7 @@ export async function fetchGameDetail(gameId: string, viewerUserId: string | nul
     game,
     mode,
     odds,
+    publicShareByMode,
     user_prediction: userPrediction,
     user_bets: userBets,
     point_balance: (userRes.data?.point_balance as number | undefined) ?? 0,
@@ -429,7 +461,7 @@ export async function fetchRanking(
     const range = normalizeDateRangeForPeriod(period, options.date, options.endDate);
     const { data, error } = await supabase
       .from("settlements")
-      .select("user_id, points_delta, is_correct, settled_at")
+      .select("game_id, user_id, points_delta, is_correct, settled_at")
       .gte("settled_at", range.fromIso)
       .lt("settled_at", range.toIso)
       .order("settled_at", { ascending: false });
@@ -438,9 +470,16 @@ export async function fetchRanking(
       throw new Error(`Failed to fetch settlements: ${error.message}`);
     }
 
+    const settlementRows = (data as SettlementRow[] | null) ?? [];
+    const gameStatusMap = await fetchGameStatusMap(
+      supabase,
+      settlementRows.map((row) => row.game_id)
+    );
+    const scoredRows = settlementRows.filter((row) => gameStatusMap.get(row.game_id) !== "canceled");
+
     const stats = new Map<string, { points: number; predictions: number; correct: number }>();
     const streak = new Map<string, { current: number; blocked: boolean }>();
-    (data as SettlementRow[] | null)?.forEach((row) => {
+    scoredRows.forEach((row) => {
       const current = stats.get(row.user_id) ?? { points: 0, predictions: 0, correct: 0 };
       current.points += row.points_delta;
       current.predictions += 1;
@@ -531,7 +570,7 @@ export async function fetchMeSummary(userId: string, seasonYear: number) {
       .maybeSingle(),
     supabase
       .from("settlements")
-      .select("is_correct, points_delta, settled_at")
+      .select("game_id, is_correct, points_delta, settled_at")
       .eq("user_id", userId)
       .order("settled_at", { ascending: false })
       .limit(50),
@@ -553,12 +592,17 @@ export async function fetchMeSummary(userId: string, seasonYear: number) {
   const correct = statsRes.data?.correct_total ?? 0;
   const hitRate = predictions > 0 ? correct / predictions : 0;
 
-  const recent = recentRes.data ?? [];
-  const recentWin = recent.filter((item) => item.is_correct).length;
-  const recentLose = recent.length - recentWin;
-  const recentPoints = recent.reduce((sum, item) => sum + (item.points_delta ?? 0), 0);
+  const recent = (recentRes.data as SettlementRow[] | null) ?? [];
+  const recentStatusMap = await fetchGameStatusMap(
+    supabase,
+    recent.map((item) => item.game_id)
+  );
+  const scoredRecent = recent.filter((item) => recentStatusMap.get(item.game_id) !== "canceled");
+  const recentWin = scoredRecent.filter((item) => item.is_correct).length;
+  const recentLose = scoredRecent.length - recentWin;
+  const recentPoints = scoredRecent.reduce((sum, item) => sum + (item.points_delta ?? 0), 0);
   let currentStreak = 0;
-  for (const item of recent) {
+  for (const item of scoredRecent) {
     if (item.is_correct) {
       currentStreak += 1;
       continue;
@@ -608,6 +652,7 @@ export async function fetchMeHistory(userId: string, limit: number): Promise<MeH
       .select(
         `
         id,
+        status,
         winner,
         home_team:teams!games_home_team_id_fkey(name),
         away_team:teams!games_away_team_id_fkey(name)
@@ -632,12 +677,13 @@ export async function fetchMeHistory(userId: string, limit: number): Promise<MeH
 
   const gameMap = new Map<
     string,
-    { winner: Side | null; home: string; away: string }
+    { status: GameStatus; winner: Side | null; home: string; away: string }
   >();
   (gamesRes.data as GameRow[] | null)?.forEach((row) => {
     const home = normalizeTeam(row.home_team).name;
     const away = normalizeTeam(row.away_team).name;
     gameMap.set(row.id, {
+      status: row.status as GameStatus,
       winner: row.winner,
       home,
       away
@@ -652,6 +698,7 @@ export async function fetchMeHistory(userId: string, limit: number): Promise<MeH
       home_team_name: game?.home ?? "未設定",
       away_team_name: game?.away ?? "未設定",
       pick_summary: pickMap.get(settlement.game_id) ?? "未予想",
+      status: game?.status ?? "final",
       winner: game?.winner ?? null,
       points_delta: settlement.points_delta,
       stake_points: settlement.stake_points

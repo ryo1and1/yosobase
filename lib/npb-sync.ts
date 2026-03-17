@@ -58,12 +58,13 @@ type DbGameRow = {
   external_game_key: string | null;
 };
 
-export type NpbSyncMode = "full" | "results_only";
+export type NpbSyncMode = "full" | "results_only" | "schedule_only";
 
 export type NpbMonthlySyncInput = {
   year: number;
   month: number;
   mode?: NpbSyncMode;
+  targetDates?: string[];
 };
 
 export type NpbMonthlySyncResult = {
@@ -488,12 +489,15 @@ function getMonthRange(year: number, month: number): { fromIso: string; toIso: s
   return { fromIso: from.toISOString(), toIso: to.toISOString() };
 }
 
-function validateInput({ year, month }: NpbMonthlySyncInput): void {
+function validateInput({ year, month, targetDates }: NpbMonthlySyncInput): void {
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new Error("year must be integer (2000-2100)");
   }
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw new Error("month must be integer (1-12)");
+  }
+  if (targetDates && targetDates.some((date) => !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    throw new Error("targetDates must be YYYY-MM-DD");
   }
 }
 
@@ -519,6 +523,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
   const startedAt = new Date();
   const mode = input.mode ?? "full";
   const { year, month } = input;
+  const targetDateSet = input.targetDates?.length ? new Set(input.targetDates) : null;
   const scheduleUrl = `https://npb.jp/games/${year}/schedule_${two(month)}_detail.html`;
   const resultsUrl = `https://npb.jp/bis/${year}/calendar/index_${two(month)}.html`;
 
@@ -548,7 +553,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     let resultsHtml: string | null = null;
     const fetchErrors: string[] = [];
 
-    if (mode === "full") {
+    if (mode === "full" || mode === "schedule_only") {
       try {
         scheduleHtml = await fetchHtml(scheduleUrl);
       } catch (error) {
@@ -559,25 +564,33 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       }
     }
 
-    try {
-      resultsHtml = await fetchHtml(resultsUrl);
-    } catch (error) {
-      syncErrors += 1;
-      const message = error instanceof Error ? error.message : `Failed to fetch ${resultsUrl}`;
-      result.warnings.push(`results_fetch_failed: ${message}`);
-      fetchErrors.push(message);
+    if (mode !== "schedule_only") {
+      try {
+        resultsHtml = await fetchHtml(resultsUrl);
+      } catch (error) {
+        syncErrors += 1;
+        const message = error instanceof Error ? error.message : `Failed to fetch ${resultsUrl}`;
+        result.warnings.push(`results_fetch_failed: ${message}`);
+        fetchErrors.push(message);
+      }
     }
 
     if (!scheduleHtml && !resultsHtml) {
       throw new Error(fetchErrors[0] ?? "failed to fetch schedule and results pages");
     }
 
-    const scheduleGames = mode === "full" && scheduleHtml ? parseScheduleHtml(scheduleHtml, year, result.warnings) : [];
+    const scheduleGames =
+      (mode === "full" || mode === "schedule_only") && scheduleHtml
+        ? parseScheduleHtml(scheduleHtml, year, result.warnings)
+        : [];
+    const filteredScheduleGames = targetDateSet
+      ? scheduleGames.filter((game) => targetDateSet.has(game.date))
+      : scheduleGames;
     const resultGames = resultsHtml ? parseResultsHtml(resultsHtml, result.warnings).filter((game) => {
       return game.date.startsWith(`${year}-${two(month)}-`);
     }) : [];
 
-    result.fetched.scheduleGames = scheduleGames.length;
+    result.fetched.scheduleGames = filteredScheduleGames.length;
     result.fetched.resultGames = resultGames.length;
 
     const supabase = createServiceClient();
@@ -595,7 +608,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     const existingRows = (dbRows ?? []) as DbGameRow[];
     const gameMaps = buildGameMaps(existingRows);
 
-    for (const game of scheduleGames) {
+    for (const game of filteredScheduleGames) {
       const legacyKey = buildLegacyKey(game.date, game.homeTeamId, game.awayTeamId);
       const externalCandidates = gameMaps.byExternal.get(game.externalGameKey) ?? [];
       const legacyCandidates = gameMaps.byLegacy.get(legacyKey) ?? [];
