@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { INITIAL_POINT_BALANCE } from "@/lib/game-rules";
 import { FavoriteTeamForm } from "@/components/favorite-team-form";
 import { ShareXButton } from "@/components/share-x-button";
 import { fetchMeHistory, fetchMeSummary } from "@/lib/data";
 import { getViewerUserId } from "@/lib/guest-user";
 import { publicUserCodeFromId } from "@/lib/public-user-code";
 import { createServiceClient } from "@/lib/supabase";
-import { formatJstDateTime } from "@/lib/time";
+import { currentJstYear, formatJstDateTime } from "@/lib/time";
 import type { Team } from "@/lib/types";
 
 type TeamRelation = { name: string }[] | { name: string } | null;
@@ -53,7 +54,7 @@ export default async function MePage() {
     );
   }
 
-  const year = new Date().getFullYear();
+  const year = currentJstYear();
   const supabase = createServiceClient();
   const [summary, history, profileRes, teamsRes] = await Promise.all([
     fetchMeSummary(viewerUserId, year),
@@ -137,7 +138,7 @@ export default async function MePage() {
           <p>保有ポイント</p>
           <div>
             <strong>{summary.balance.toLocaleString()}</strong>
-            <span>初期値 30,000pt</span>
+            <span>初期値 {INITIAL_POINT_BALANCE.toLocaleString()}pt</span>
           </div>
         </article>
 
@@ -174,10 +175,14 @@ export default async function MePage() {
               </thead>
               <tbody>
                 {history.map((item) => {
-                  const isHit = item.points_delta > 0;
+                  const isRefund = item.status === "canceled";
+                  const isHit = !isRefund && item.points_delta > 0;
                   const resultLabel = item.winner ? (isHit ? "的中" : "不的中") : "未確定";
-                  const scoreClass = item.points_delta > 0 ? "is-plus" : "is-zero";
+                  const scoreClass =
+                    isRefund ? "is-zero" : item.points_delta > 0 ? "is-plus" : item.points_delta < 0 ? "is-minus" : "is-zero";
                   const pointText = item.points_delta > 0 ? `+${item.points_delta}` : `${item.points_delta}`;
+                  const displayResultLabel = isRefund ? "返金" : resultLabel;
+                  const resultClass = isRefund ? "is-refund" : isHit ? "is-win" : "is-loss";
 
                   return (
                     <tr key={`${item.game_id}:${item.settled_at}`}>
@@ -195,7 +200,7 @@ export default async function MePage() {
                         <span className="profile-pill">{item.pick_summary}</span>
                       </td>
                       <td>
-                        <span className={`profile-result ${isHit ? "is-win" : "is-loss"}`}>{resultLabel}</span>
+                        <span className={`profile-result ${resultClass}`}>{displayResultLabel}</span>
                       </td>
                       <td>
                         <span className={`profile-points ${scoreClass}`}>{pointText}</span>

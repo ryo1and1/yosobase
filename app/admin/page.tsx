@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatJstDateTime, toJstDateTimeLocalValue, todayJst } from "@/lib/time";
+import { currentJstYearMonth, formatJstDateTime, toJstDateTimeLocalValue, todayJst } from "@/lib/time";
 import type { GameStatus, Side, Team } from "@/lib/types";
 
 type WinnerValue = Side | "none";
@@ -42,6 +42,7 @@ const winnerResultLabel = (game: AdminGame) => game.winner === "home" ? `${game.
 const scoreLabel = (game: AdminGame) => game.score_home === null || game.score_away === null ? "未入力" : `${game.score_home} - ${game.score_away}`;
 
 export default function AdminPage() {
+  const currentYearMonth = currentJstYearMonth();
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [secretInput, setSecretInput] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
@@ -53,9 +54,9 @@ export default function AdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState({ season_year: 2026, start_at: toJstDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)), stadium: "", home_team_id: "", away_team_id: "", status: "scheduled" as GameStatus, winner: "none" as WinnerValue, score_home: "", score_away: "" });
+  const [createForm, setCreateForm] = useState({ season_year: currentYearMonth.year, start_at: toJstDateTimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)), stadium: "", home_team_id: "", away_team_id: "", status: "scheduled" as GameStatus, winner: "none" as WinnerValue, score_home: "", score_away: "" });
   const [filters, setFilters] = useState({ date: todayJst(), season_year: "", status: "all" as "all" | GameStatus });
-  const [importForm, setImportForm] = useState(() => { const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() + 1, mode: "full" as SyncMode }; });
+  const [importForm, setImportForm] = useState(() => ({ year: currentYearMonth.year, month: currentYearMonth.month, mode: "full" as SyncMode }));
 
   const isAuth = authState === "authenticated";
   const isDev = process.env.NODE_ENV === "development";

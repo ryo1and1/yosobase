@@ -1,6 +1,8 @@
 ﻿import Link from "next/link";
 import { Lexend } from "next/font/google";
+import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { HomeDatePicker } from "@/components/home-date-picker";
+import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchGamesByDate } from "@/lib/data";
 import { getAuthenticatedViewerUserId, getViewerUserId } from "@/lib/guest-user";
 import { formatJstDate, formatJstTime, todayJst } from "@/lib/time";
@@ -86,6 +88,9 @@ function gameStateLabel(game: TopGame): string {
 function myStateLabel(game: TopGame): string {
   if (game.user_settlement_points !== null) {
     const signed = game.user_settlement_points >= 0 ? `+${game.user_settlement_points}` : `${game.user_settlement_points}`;
+    if (game.status === "canceled") {
+      return `返金済み（${signed}pt）`;
+    }
     return `精算済み（${signed}pt）`;
   }
   if (game.user_prediction === "home") return "予想済み（ホーム）";
@@ -126,6 +131,7 @@ export default async function HomePage({
   const [viewerUserId, authenticatedUserId] = await Promise.all([getViewerUserId(), getAuthenticatedViewerUserId()]);
   const isAuthenticated = Boolean(authenticatedUserId);
   const games = (await fetchGamesByDate(date, viewerUserId)) as TopGame[];
+  const topAd = getAdSenseUnitConfig("top");
 
   const liveGames = games.filter((game) => game.status === "in_progress").slice(0, 2);
   const dayGames = games
@@ -140,8 +146,8 @@ export default async function HomePage({
   const scheduleDates = baseDates.includes(date)
     ? baseDates
     : [todayDate, addDays(date, -1), date, addDays(date, 1)].filter(
-        (value, index, arr) => arr.indexOf(value) === index
-      );
+      (value, index, arr) => arr.indexOf(value) === index
+    );
 
   return (
     <div className={`${lexend.className} home-top`}>
@@ -234,7 +240,6 @@ export default async function HomePage({
         {dayGames.length === 0 ? (
           <article className="home-empty-card">
             <p className="home-empty-title">この日の試合はまだありません。</p>
-            <p className="home-empty-sub">運営者は `/admin` で試合を登録してください。</p>
           </article>
         ) : (
           <div className="home-upcoming-list">
@@ -271,6 +276,8 @@ export default async function HomePage({
           </div>
         )}
       </section>
+
+      {topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
 
       <section className="home-banner">
         <div>

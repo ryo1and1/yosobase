@@ -6,12 +6,13 @@ import { syncNpbMonthlyGames } from "@/lib/npb-sync";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type YearMonth = {
+type SyncTarget = {
   year: number;
   month: number;
+  targetDates?: string[];
 };
 
-type SyncMode = "full" | "results_only";
+type SyncMode = "full" | "results_only" | "schedule_only";
 
 function isCronAuthorized(request: NextRequest): boolean {
   const expected = getCronSecret();
@@ -26,51 +27,72 @@ function readInteger(value: string | null): number | null {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
-function getJstYearMonth(date: Date): YearMonth {
+function getJstDateParts(date: Date): { year: number; month: number; dateKey: string } {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
-    month: "2-digit"
+    month: "2-digit",
+    day: "2-digit"
   });
   const parts = formatter.formatToParts(date);
   const year = Number.parseInt(parts.find((part) => part.type === "year")?.value ?? "", 10);
   const month = Number.parseInt(parts.find((part) => part.type === "month")?.value ?? "", 10);
-  return { year, month };
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  return {
+    year,
+    month,
+    dateKey: `${year}-${String(month).padStart(2, "0")}-${day}`
+  };
 }
 
-function listWindowMonths(daysAhead: number): YearMonth[] {
-  const targets: YearMonth[] = [];
+function listWindowMonths(daysAhead: number): SyncTarget[] {
+  const targets: SyncTarget[] = [];
   const seen = new Set<string>();
 
   for (let offset = 0; offset <= daysAhead; offset += 1) {
-    const target = getJstYearMonth(new Date(Date.now() + offset * 24 * 60 * 60 * 1000));
+    const target = getJstDateParts(new Date(Date.now() + offset * 24 * 60 * 60 * 1000));
     const key = `${target.year}-${String(target.month).padStart(2, "0")}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
-    targets.push(target);
+    targets.push({ year: target.year, month: target.month });
   }
 
   return targets;
 }
 
-function listCurrentAndPreviousMonth(): YearMonth[] {
+function listCurrentAndPreviousMonth(): SyncTarget[] {
   const now = new Date();
   const previous = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
-  const months = [getJstYearMonth(previous), getJstYearMonth(now)];
+  const months = [getJstDateParts(previous), getJstDateParts(now)];
   const seen = new Set<string>();
-  return months.filter((month) => {
-    const key = `${month.year}-${String(month.month).padStart(2, "0")}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
+  return months
+    .filter((month) => {
+      const key = `${month.year}-${String(month.month).padStart(2, "0")}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .map((month) => {
+      return { year: month.year, month: month.month };
+    });
 }
 
-function makeTargetList(request: NextRequest, mode: SyncMode): YearMonth[] {
+function makeTomorrowTarget(): SyncTarget[] {
+  const tomorrow = getJstDateParts(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  return [
+    {
+      year: tomorrow.year,
+      month: tomorrow.month,
+      targetDates: [tomorrow.dateKey]
+    }
+  ];
+}
+
+function makeTargetList(request: NextRequest, mode: SyncMode): SyncTarget[] {
   const yearParam = readInteger(request.nextUrl.searchParams.get("year"));
   const monthParam = readInteger(request.nextUrl.searchParams.get("month"));
   if (yearParam !== null || monthParam !== null) {
@@ -83,6 +105,9 @@ function makeTargetList(request: NextRequest, mode: SyncMode): YearMonth[] {
   if (mode === "results_only") {
     return listCurrentAndPreviousMonth();
   }
+  if (mode === "schedule_only") {
+    return makeTomorrowTarget();
+  }
   return listWindowMonths(7);
 }
 
@@ -90,6 +115,9 @@ function parseSyncMode(request: NextRequest): SyncMode {
   const mode = request.nextUrl.searchParams.get("mode");
   if (mode === "results" || mode === "results_only") {
     return "results_only";
+  }
+  if (mode === "schedule_only" || mode === "next_day" || mode === "next_day_schedule") {
+    return "schedule_only";
   }
   return "full";
 }

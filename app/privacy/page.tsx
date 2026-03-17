@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Lexend } from "next/font/google";
 
 const lexend = Lexend({
@@ -40,9 +40,18 @@ export default function PrivacyPage() {
       </section>
 
       <section className="legal-card">
-        <h2>4. 改定</h2>
+        <h2>4. 広告配信について</h2>
+        <p>
+          本サービスは、第三者配信の広告サービス（Google AdSense 等）を利用する場合があります。広告配信事業者は、
+          パーソナライズド広告や配信効果測定のために Cookie、IPアドレス、アクセス情報等を取得・利用する場合があります。
+        </p>
+        <p>ユーザーは、Google の広告設定等を通じてパーソナライズド広告の表示を調整できます。</p>
+      </section>
+
+      <section className="legal-card">
+        <h2>5. 改定</h2>
         <p>本ポリシーは必要に応じて改定することがあります。重要な変更は本サービス上で告知します。</p>
-        <p className="legal-meta">最終更新日: 2026-03-02</p>
+        <p className="legal-meta">最終更新日: 2026-03-16</p>
       </section>
 
       <section className="legal-links">

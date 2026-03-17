@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MAX_STAKE_PER_GAME, ODDS_MIN, optionsForMode } from "@/lib/game-rules";
+import { INITIAL_POINT_BALANCE, MAX_STAKE_PER_GAME, ODDS_MIN, optionsForMode } from "@/lib/game-rules";
 import { optionLabel, winningOptionsFromResult } from "@/lib/odds";
 import type {
   OddsItem,
   PredictionAllocation,
   PredictionMode,
   PredictionOption,
+  PublicShareSummaryByMode,
   Side
 } from "@/lib/types";
 
@@ -23,6 +24,7 @@ type Props = {
   winner: Side | null;
   mode: PredictionMode;
   odds: OddsItem[];
+  publicShareByMode: PublicShareSummaryByMode;
   initialAllocations: PredictionAllocation[];
   pointBalance: number;
   settlementPoints: number | null;
@@ -32,6 +34,8 @@ type MessageType = "success" | "error";
 type AllocationMap = Partial<Record<PredictionOption, number>>;
 
 const QUICK_STAKE_AMOUNTS = [100, 300, 500] as const;
+const PUBLIC_SHARE_MIN_PREDICTORS = 5;
+const PUBLIC_SHARE_MIN_POINTS = 1_100;
 
 function modeLabel(mode: PredictionMode): string {
   return mode === "simple" ? "3択（ライト）" : "7択（詳細）";
@@ -67,6 +71,7 @@ export function PredictionPanel({
   winner,
   mode: initialMode,
   odds: initialOdds,
+  publicShareByMode,
   initialAllocations,
   pointBalance: initialBalance,
   settlementPoints
@@ -107,8 +112,14 @@ export function PredictionPanel({
   const savedTotal = useMemo(() => sumAllocationMap(savedAllocations), [savedAllocations]);
   const displayedSettlementPoints = settlementPoints ?? 0;
   const isWinningPrediction = (settlementPoints ?? 0) > 0;
+  const isRefundedPrediction = status === "canceled" && settlementPoints !== null;
   const settlementPointText =
     displayedSettlementPoints > 0 ? `+${displayedSettlementPoints}` : `${displayedSettlementPoints}`;
+  const publicShareSummary = publicShareByMode[savedMode];
+  const showPublicShare = savedTotal > 0;
+  const canRevealPublicShare =
+    publicShareSummary.publicPredictorCount >= PUBLIC_SHARE_MIN_PREDICTORS &&
+    publicShareSummary.publicBetPointsTotal >= PUBLIC_SHARE_MIN_POINTS;
   const winningOptions = useMemo(
     () => new Set(winningOptionsFromResult(winner, scoreHome, scoreAway)),
     [scoreAway, scoreHome, winner]
@@ -344,7 +355,9 @@ export function PredictionPanel({
       <div className="prediction-head">
         <div>
           <h2>勝敗予想</h2>
-          <p>初期ポイント 30,000pt / 1試合最大 {MAX_STAKE_PER_GAME}pt。開始5分前でオッズ固定・受付終了です。</p>
+          <p>
+            初期ポイント {INITIAL_POINT_BALANCE.toLocaleString()}pt / 1試合最大 {MAX_STAKE_PER_GAME}pt。開始5分前でオッズ固定・受付終了です。
+          </p>
         </div>
         <p className={`prediction-deadline ${isClosed ? "is-closed" : ""}`}>
           {status === "scheduled" && !isClosed ? `締切まで ${Math.max(minutesLeft, 0)} 分` : "予想受付は終了しました。"}
@@ -443,6 +456,35 @@ export function PredictionPanel({
         {maxAllocatableTotal.toLocaleString()} pt
       </p>
 
+      {showPublicShare ? (
+        <section className="prediction-public-share">
+          <div className="prediction-public-share-head">
+            <div>
+              <h3>みんなの予想</h3>
+              {canRevealPublicShare ? <p>実際の予想ポイントのみを集計した割合です。</p> : null}
+            </div>
+          </div>
+
+          {canRevealPublicShare ? (
+            <div className="prediction-public-share-list">
+              {publicShareSummary.items.map((item) => (
+                <div key={item.option} className="prediction-public-share-row">
+                  <div className="prediction-public-share-meta">
+                    <span>{optionLabel(item.option)}</span>
+                    <strong>{item.publicSharePercent}%</strong>
+                  </div>
+                  <div className="prediction-public-share-bar" aria-hidden="true">
+                    <span style={{ width: `${item.publicSharePercent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="prediction-public-share-note">（まだデータが少ないため表示していません）</p>
+          )}
+        </section>
+      ) : null}
+
       {false ? (
         <p className={`prediction-settlement${isWinningPrediction ? " is-hit" : ""}`}>
           試合結果: {winner === "home" ? homeTeamName : winner === "away" ? awayTeamName : "引き分け / 勝敗なし"}
@@ -460,6 +502,9 @@ export function PredictionPanel({
 
       {status === "final" ? (
         <p className={`prediction-settlement${isWinningPrediction ? " is-hit" : ""}`}>精算ポイント: {settlementPointText} pt</p>
+      ) : null}
+      {isRefundedPrediction ? (
+        <p className="prediction-settlement is-refund">返金ポイント: {settlementPointText} pt</p>
       ) : null}
 
       {message ? <p className={`prediction-message ${messageType === "error" ? "is-error" : "is-success"}`}>{message}</p> : null}

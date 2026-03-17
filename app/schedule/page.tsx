@@ -40,6 +40,9 @@ function gameStateLabel(game: ScheduleGame): string {
 function myStateLabel(game: ScheduleGame): string {
   if (game.user_settlement_points !== null) {
     const signed = game.user_settlement_points >= 0 ? `+${game.user_settlement_points}` : `${game.user_settlement_points}`;
+    if (game.status === "canceled") {
+      return `返金済み（${signed}pt）`;
+    }
     return `精算済み（${signed}pt）`;
   }
   if (game.user_prediction === "home") return "予想済み（ホーム）";

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Lexend } from "next/font/google";
+import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { ShareXButton } from "@/components/share-x-button";
+import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchRanking } from "@/lib/data";
 import { getViewerUserId } from "@/lib/guest-user";
 import { createServiceClient } from "@/lib/supabase";
@@ -53,6 +55,7 @@ export default async function RankingsPage({
   const period = parseRankingPeriod(params.period ?? null);
   const viewerUserId = await getViewerUserId();
   const seasonYear = params.seasonYear ? Number(params.seasonYear) : currentJstYear();
+  const rankingAd = getAdSenseUnitConfig("ranking");
 
   const ranking = await fetchRanking(period, {
     date: params.date,
@@ -217,6 +220,7 @@ export default async function RankingsPage({
       <section className="leaderboard-footer">
         <p>表示中: {showingText}</p>
       </section>
+      {rankingAd ? <AdSenseUnit client={rankingAd.client} slot={rankingAd.slot} className="leaderboard-ad-slot" /> : null}
     </div>
   );
 }

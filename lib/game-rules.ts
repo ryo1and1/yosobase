@@ -1,16 +1,18 @@
 import type { PredictionMode, PredictionOption } from "@/lib/types";
 
-export const INITIAL_POINT_BALANCE = 30_000;
+export const INITIAL_POINT_BALANCE = 10_000;
+export const DAILY_LOGIN_BONUS_POINTS = 200;
 export const MAX_STAKE_PER_GAME = 1_000;
 export const LOCK_MINUTES_BEFORE_START = 5;
+export const ODDS_PAYOUT_RATE = 0.9;
 export const ODDS_MIN = 1.3;
 export const ODDS_MAX = 6.0;
 
 export const SIMPLE_OPTIONS: readonly PredictionOption[] = ["home_win", "draw", "away_win"];
 export const DETAILED_OPTIONS: readonly PredictionOption[] = [
-  "home_by1",
-  "home_by2",
   "home_by3plus",
+  "home_by2",
+  "home_by1",
   "draw",
   "away_by1",
   "away_by2",

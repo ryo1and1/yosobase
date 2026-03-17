@@ -9,6 +9,19 @@ export function currentJstYear(): number {
   );
 }
 
+export function currentJstYearMonth(): { year: number; month: number } {
+  const formatted = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: JST_ZONE,
+    year: "numeric",
+    month: "2-digit"
+  }).format(new Date());
+  const [yearText, monthText] = formatted.split("-");
+  return {
+    year: Number.parseInt(yearText, 10),
+    month: Number.parseInt(monthText, 10)
+  };
+}
+
 export function todayJst(): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: JST_ZONE }).format(new Date());
 }
