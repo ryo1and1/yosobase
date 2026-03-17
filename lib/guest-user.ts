@@ -1,28 +1,33 @@
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
-import { AUTH_COOKIE_NAME, getAuthSessionUserId } from "@/lib/auth";
+import { ensurePublicUserProfile } from "@/lib/public-user-profile";
+import { createClient } from "@/lib/supabase/server";
 
 const SESSION_COOKIE_NAME = "yosobase_session_id";
 
-export async function getViewerUserId(): Promise<string | null> {
-  const store = await cookies();
-  const authToken = store.get(AUTH_COOKIE_NAME)?.value;
-  if (authToken) {
-    const sessionUserId = await getAuthSessionUserId(authToken);
-    if (sessionUserId) {
-      return sessionUserId;
+async function getAuthenticatedViewer() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    try {
+      await ensurePublicUserProfile(supabase, user);
+    } catch {
+      // Keep authentication available even if profile sync lags behind.
     }
   }
-  return null;
+
+  return user;
+}
+
+export async function getViewerUserId(): Promise<string | null> {
+  return (await getAuthenticatedViewer())?.id ?? null;
 }
 
 export async function getAuthenticatedViewerUserId(): Promise<string | null> {
-  const store = await cookies();
-  const authToken = store.get(AUTH_COOKIE_NAME)?.value;
-  if (!authToken) {
-    return null;
-  }
-  return getAuthSessionUserId(authToken);
+  return (await getAuthenticatedViewer())?.id ?? null;
 }
 
 export async function getViewerSessionId(): Promise<string | null> {

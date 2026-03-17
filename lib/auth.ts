@@ -1,6 +1,8 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
+import { ensurePublicUserProfile } from "@/lib/public-user-profile";
 import { createServiceClient } from "@/lib/supabase";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 
 const SESSION_TOKEN_BYTES = 32;
 const PASSWORD_SALT_BYTES = 16;
@@ -91,7 +93,22 @@ export async function deleteAuthSession(token: string): Promise<void> {
 }
 
 export async function getAuthUserIdFromRequest(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value ?? "";
-  if (!token) return null;
-  return getAuthSessionUserId(token);
+  void request;
+
+  const supabase = await createServerClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  try {
+    await ensurePublicUserProfile(supabase, user);
+  } catch {
+    return user.id;
+  }
+
+  return user.id;
 }

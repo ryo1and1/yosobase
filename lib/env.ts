@@ -11,7 +11,12 @@ export function getSupabaseUrl(): string {
 }
 
 export function getAnonKey(): string {
-  return requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_ANON_KEY ??
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  );
 }
 
 export function getServiceRoleKey(): string {

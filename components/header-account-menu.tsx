@@ -78,6 +78,9 @@ export function HeaderAccountMenu({ avatarLabel }: HeaderAccountMenuProps) {
         {avatarLabel}
       </summary>
       <div className="header-menu-popover">
+        <Link href="/mypage" className="header-menu-item" onClick={closeMenu}>
+          マイページ
+        </Link>
         <Link href="/me" className="header-menu-item" onClick={closeMenu}>成績</Link>
         <button type="button" className="header-menu-item is-danger" onClick={handleLogout} disabled={isSubmitting}>
           {isSubmitting ? "ログアウト中..." : "ログアウト"}

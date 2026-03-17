@@ -329,6 +329,44 @@ begin
 end;
 $$;
 
+create or replace function public.handle_auth_user_created()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_display_name text;
+  v_favorite_team_id text;
+begin
+  v_display_name := left(
+    coalesce(
+      nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      'ユーザー'
+    ),
+    32
+  );
+
+  select teams.id
+  into v_favorite_team_id
+  from public.teams
+  where teams.id = nullif(trim(new.raw_user_meta_data ->> 'favorite_team_id'), '')
+  limit 1;
+
+  insert into public.users (id, email, display_name, favorite_team_id, point_balance)
+  values (new.id, new.email, v_display_name, v_favorite_team_id, 10000)
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_auth_user_created();
+
 drop trigger if exists trg_users_updated_at on public.users;
 create trigger trg_users_updated_at
 before update on public.users
