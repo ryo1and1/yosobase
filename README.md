@@ -30,6 +30,8 @@ NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_RANKING=
 
 本番では `NEXT_PUBLIC_SITE_URL=https://yosobase.com` を設定してください。
 
+`CRON_SECRET` は Vercel Cron の query secret にも使います。今の実装は `/api/cron/*?secret=...` で認証するので、本番ビルド時にも `CRON_SECRET` が設定されている必要があります。
+
 ## Local Setup
 
 1. 依存関係をインストールします。

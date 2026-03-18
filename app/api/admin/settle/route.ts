@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isCronAuthorized } from "@/lib/cron-auth";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import { runSettlementBatch } from "@/lib/settlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function handleCronRequest(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    if (!isCronAuthorized(request)) {
+    if (!isAdminAuthorized(request)) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
@@ -17,8 +17,4 @@ async function handleCronRequest(request: NextRequest) {
     const message = error instanceof Error ? error.message : "failed to settle";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
-
-export async function GET(request: NextRequest) {
-  return handleCronRequest(request);
 }

@@ -1,22 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminAuthorized } from "@/lib/admin-auth";
-import { getCronSecret } from "@/lib/env";
+import { isCronAuthorized, withCronSecret } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function isCronAuthorized(request: NextRequest): boolean {
-  const expected = getCronSecret();
-  const authHeader = request.headers.get("authorization");
-  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  return bearer === expected || isAdminAuthorized(request);
-}
-
 async function invokeStep(request: NextRequest, path: string) {
-  const authorization = request.headers.get("authorization");
-  const response = await fetch(new URL(path, request.nextUrl.origin), {
-    method: "POST",
-    headers: authorization ? { authorization } : undefined,
+  const response = await fetch(new URL(withCronSecret(path), request.nextUrl.origin), {
+    method: "GET",
     cache: "no-store"
   });
   const body = await response.json().catch(() => null);
@@ -57,9 +47,5 @@ async function handleCronRequest(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return handleCronRequest(request);
-}
-
-export async function POST(request: NextRequest) {
   return handleCronRequest(request);
 }
