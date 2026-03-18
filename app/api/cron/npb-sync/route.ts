@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminAuthorized } from "@/lib/admin-auth";
-import { getCronSecret } from "@/lib/env";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { syncNpbMonthlyGames } from "@/lib/npb-sync";
 
 export const runtime = "nodejs";
@@ -13,13 +12,6 @@ type SyncTarget = {
 };
 
 type SyncMode = "full" | "results_only" | "schedule_only";
-
-function isCronAuthorized(request: NextRequest): boolean {
-  const expected = getCronSecret();
-  const authHeader = request.headers.get("authorization");
-  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  return bearer === expected || isAdminAuthorized(request);
-}
 
 function readInteger(value: string | null): number | null {
   if (!value) return null;
@@ -144,9 +136,5 @@ async function handleCronRequest(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return handleCronRequest(request);
-}
-
-export async function POST(request: NextRequest) {
   return handleCronRequest(request);
 }

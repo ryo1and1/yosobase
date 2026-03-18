@@ -215,7 +215,7 @@ export default function AdminPage() {
   async function onSettle() {
     try {
       setBusy("settle");
-      const response = await adminFetch("/api/cron/settle", { method: "POST" });
+      const response = await adminFetch("/api/admin/settle", { method: "POST" });
       const payload = await parseJson(response);
       if (!response.ok) throw new Error(readError(payload, "精算に失敗しました"));
       const totals = payload && typeof payload === "object" && "totals" in payload ? (payload.totals as Record<string, unknown>) : null;
