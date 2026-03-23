@@ -692,7 +692,7 @@ $$;
 create or replace function public.grant_daily_login_bonus(
   p_user_id uuid,
   p_today_jst date,
-  p_bonus_points int default 200
+  p_bonus_points int default 50
 )
 returns table(
   applied boolean,
@@ -728,7 +728,7 @@ begin
 
   update public.users
   set
-    point_balance = point_balance + p_bonus_points,
+    point_balance = public.users.point_balance + p_bonus_points,
     last_login_bonus_date = p_today_jst,
     updated_at = now()
   where id = p_user_id

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { ensurePublicUserProfile } from "@/lib/public-user-profile";
 import { createClient } from "@/lib/supabase/server";
+import { ensurePublicUserProfile } from "@/lib/public-user-profile";
+import { createServiceClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,15 @@ export async function GET() {
       return NextResponse.json({ authenticated: false });
     }
 
-    await ensurePublicUserProfile(supabase, user);
+    try {
+      await ensurePublicUserProfile(createServiceClient(), user);
+    } catch {
+      // Keep auth state readable even if profile sync temporarily fails.
+    }
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, display_name, email, favorite_team_id")
+      .select("id, display_name, email, favorite_team_id, point_balance")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -34,11 +39,12 @@ export async function GET() {
         id: user.id,
         display_name: data?.display_name ?? user.email?.split("@")[0] ?? "ユーザー",
         email: data?.email ?? user.email ?? "",
-        favorite_team_id: data?.favorite_team_id ?? null
+        favorite_team_id: data?.favorite_team_id ?? null,
+        point_balance: data?.point_balance ?? 0
       }
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "認証状態の取得に失敗しました。";
+    const message = error instanceof Error ? error.message : "認証状態の取得に失敗しました";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

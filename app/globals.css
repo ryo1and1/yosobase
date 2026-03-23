@@ -169,6 +169,21 @@ a {
   gap: 0.6rem;
 }
 
+.header-session-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-session-skeleton {
+  width: 5.6rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(71, 85, 105, 0.5), rgba(100, 116, 139, 0.28), rgba(71, 85, 105, 0.5));
+  background-size: 200% 100%;
+  animation: header-skeleton-shimmer 1.2s linear infinite;
+}
+
 .header-points {
   display: none;
   align-items: flex-end;
@@ -205,6 +220,11 @@ a {
   border-color: #2563eb;
 }
 
+.header-avatar-placeholder {
+  border-color: #334155;
+  opacity: 0.72;
+}
+
 .header-avatar-button {
   cursor: pointer;
   list-style: none;
@@ -228,6 +248,15 @@ a {
 .header-auth-link:hover {
   border-color: #2563eb;
   background: #2563eb;
+}
+
+@keyframes header-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
 }
 
 .header-account-menu {

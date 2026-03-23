@@ -5,10 +5,10 @@ import { Lexend } from "next/font/google";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { PredictionPanel } from "@/components/prediction-panel";
 import { getAdSenseUnitConfig } from "@/lib/ads";
-import { fetchGameDetail } from "@/lib/data";
-import { getAuthenticatedViewerUserId } from "@/lib/guest-user";
+import { fetchGameDetail, fetchGameHeadline } from "@/lib/data";
 import { formatJstDateTime, minutesUntil } from "@/lib/time";
 import { statusLabel } from "@/lib/ui";
+import { getRequestViewerUserId } from "@/lib/viewer-server";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -25,14 +25,14 @@ export async function generateMetadata({
   params: Promise<{ gameId: string }>;
 }): Promise<Metadata> {
   const { gameId } = await params;
-  const detail = await fetchGameDetail(gameId, null);
-  if (!detail) {
+  const game = await fetchGameHeadline(gameId);
+  if (!game) {
     return { title: "試合が見つかりません" };
   }
 
   return {
-    title: `${detail.game.home_team.name} 対 ${detail.game.away_team.name}`,
-    description: `${detail.game.home_team.name} 対 ${detail.game.away_team.name} の予想詳細ページ`
+    title: `${game.homeTeamName} 対 ${game.awayTeamName}`,
+    description: `${game.homeTeamName} 対 ${game.awayTeamName} の予想詳細ページ`
   };
 }
 
@@ -42,7 +42,7 @@ export default async function GameDetailPage({
   params: Promise<{ gameId: string }>;
 }) {
   const { gameId } = await params;
-  const authenticatedUserId = await getAuthenticatedViewerUserId();
+  const authenticatedUserId = await getRequestViewerUserId();
   const detail = await fetchGameDetail(gameId, authenticatedUserId);
 
   if (!detail) {

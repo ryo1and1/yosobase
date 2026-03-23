@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase";
 import { computeOdds, computePublicShareSummaryByMode, defaultModeForBets, optionLabel, optionToBroadSide } from "@/lib/odds";
 import { publicUserCodeFromId } from "@/lib/public-user-code";
@@ -70,7 +71,10 @@ type GameStatusRow = {
 type UserIdentity = {
   display_name: string;
   public_code: string;
+  favorite_team_name: string | null;
 };
+
+type TeamNameRelation = { name: string }[] | { name: string } | null;
 
 function normalizeTeam(team: GameRow["home_team"]): { id: string; name: string } {
   if (Array.isArray(team)) {
@@ -190,6 +194,44 @@ export async function fetchGamesByDate(dateText: string, viewerUserId: string | 
     user_settlement_points: settledPoints.get(game.id) ?? null,
     user_has_prediction: (picks.get(game.id)?.length ?? 0) > 0
   }));
+}
+
+function normalizeTeamName(team: TeamNameRelation): string | null {
+  if (!team) {
+    return null;
+  }
+  if (Array.isArray(team)) {
+    return team[0]?.name ?? null;
+  }
+  return team.name ?? null;
+}
+
+export async function fetchGameHeadline(
+  gameId: string
+): Promise<{ homeTeamName: string; awayTeamName: string } | null> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("games")
+    .select(
+      `
+      home_team:teams!games_home_team_id_fkey(name),
+      away_team:teams!games_away_team_id_fkey(name)
+    `
+    )
+    .eq("id", gameId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch game headline: ${error.message}`);
+  }
+  if (!data) {
+    return null;
+  }
+
+  return {
+    homeTeamName: normalizeTeam(data.home_team as GameRow["home_team"]).name,
+    awayTeamName: normalizeTeam(data.away_team as GameRow["away_team"]).name
+  };
 }
 
 export async function fetchGameDetail(gameId: string, viewerUserId: string | null) {
@@ -362,6 +404,7 @@ function buildRankingItems(stats: Map<string, { points: number; predictions: num
       user_id: userId,
       display_name: names.get(userId)?.display_name ?? "ユーザー",
       public_code: names.get(userId)?.public_code ?? publicUserCodeFromId(userId),
+      favorite_team_name: names.get(userId)?.favorite_team_name ?? null,
       points: value.points,
       predictions: value.predictions,
       correct: value.correct,
@@ -413,9 +456,107 @@ function applyDisplayNames(items: RankingItem[], names: Map<string, UserIdentity
   return items.map((item) => ({
     ...item,
     display_name: names.get(item.user_id)?.display_name ?? item.display_name,
-    public_code: names.get(item.user_id)?.public_code ?? item.public_code
+    public_code: names.get(item.user_id)?.public_code ?? item.public_code,
+    favorite_team_name: names.get(item.user_id)?.favorite_team_name ?? item.favorite_team_name ?? null
   }));
 }
+
+type RankingSnapshot = {
+  items: RankingItem[];
+  total: number;
+};
+
+async function buildSeasonRankingSnapshot(seasonYear: number): Promise<RankingSnapshot> {
+  const rows = await fetchSeasonStatRows(seasonYear);
+  const stats = new Map<string, { points: number; predictions: number; correct: number }>();
+
+  rows.forEach((row) => {
+    stats.set(row.user_id, {
+      points: row.points_total ?? 0,
+      predictions: row.predictions_total ?? 0,
+      correct: row.correct_total ?? 0
+    });
+  });
+
+  const ranked = buildRankingItems(stats, new Map<string, UserIdentity>());
+  const nameMap = await fetchDisplayNames(ranked.map((item) => item.user_id));
+
+  return {
+    items: applyDisplayNames(ranked, nameMap),
+    total: ranked.length
+  };
+}
+
+async function buildPeriodRankingSnapshot(
+  _period: Exclude<RankingPeriod, "season">,
+  fromIso: string,
+  toIso: string
+): Promise<RankingSnapshot> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("settlements")
+    .select("game_id, user_id, points_delta, is_correct, settled_at")
+    .gte("settled_at", fromIso)
+    .lt("settled_at", toIso)
+    .order("settled_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch settlements: ${error.message}`);
+  }
+
+  const settlementRows = (data as SettlementRow[] | null) ?? [];
+  const gameStatusMap = await fetchGameStatusMap(
+    supabase,
+    settlementRows.map((row) => row.game_id)
+  );
+  const scoredRows = settlementRows.filter((row) => gameStatusMap.get(row.game_id) !== "canceled");
+
+  const stats = new Map<string, { points: number; predictions: number; correct: number }>();
+  const streak = new Map<string, { current: number; blocked: boolean }>();
+  scoredRows.forEach((row) => {
+    const current = stats.get(row.user_id) ?? { points: 0, predictions: 0, correct: 0 };
+    current.points += row.points_delta;
+    current.predictions += 1;
+    if (row.is_correct) {
+      current.correct += 1;
+    }
+    stats.set(row.user_id, current);
+
+    const streakState = streak.get(row.user_id) ?? { current: 0, blocked: false };
+    if (!streakState.blocked) {
+      if (row.is_correct) {
+        streakState.current += 1;
+      } else {
+        streakState.blocked = true;
+      }
+    }
+    streak.set(row.user_id, streakState);
+  });
+
+  const nameMap = await fetchDisplayNames(Array.from(stats.keys()));
+  const items = buildRankingItems(stats, nameMap).map((row) => ({
+    ...row,
+    current_streak: streak.get(row.user_id)?.current ?? 0
+  }));
+
+  return {
+    items,
+    total: items.length
+  };
+}
+
+const getSeasonRankingSnapshot = unstable_cache(
+  async (seasonYear: number) => buildSeasonRankingSnapshot(seasonYear),
+  ["ranking-season-snapshot"],
+  { revalidate: 30 }
+);
+
+const getPeriodRankingSnapshot = unstable_cache(
+  async (period: Exclude<RankingPeriod, "season">, fromIso: string, toIso: string) =>
+    buildPeriodRankingSnapshot(period, fromIso, toIso),
+  ["ranking-period-snapshot"],
+  { revalidate: 30 }
+);
 
 export async function fetchRanking(
   period: RankingPeriod,
@@ -427,91 +568,22 @@ export async function fetchRanking(
     viewerUserId: string | null;
   }
 ): Promise<{ items: RankingItem[]; me: RankingItem | null; total: number }> {
-  const supabase = createServiceClient();
+  const snapshot =
+    period === "season"
+      ? await getSeasonRankingSnapshot(options.seasonYear ?? currentJstYear())
+      : await (() => {
+          const range = normalizeDateRangeForPeriod(period, options.date, options.endDate);
+          return getPeriodRankingSnapshot(period, range.fromIso, range.toIso);
+        })();
 
-  let items: RankingItem[] = [];
-  let me: RankingItem | null = null;
-  let total = 0;
-
-  if (period === "season") {
-    const seasonYear = options.seasonYear ?? currentJstYear();
-    const rows = await fetchSeasonStatRows(seasonYear);
-    const stats = new Map<string, { points: number; predictions: number; correct: number }>();
-
-    rows.forEach((row) => {
-      stats.set(row.user_id, {
-        points: row.points_total ?? 0,
-        predictions: row.predictions_total ?? 0,
-        correct: row.correct_total ?? 0
-      });
-    });
-
-    const ranked = buildRankingItems(stats, new Map<string, UserIdentity>());
-    total = ranked.length;
-    const topItems = ranked.slice(0, options.limit);
-    const meCandidate = options.viewerUserId ? ranked.find((item) => item.user_id === options.viewerUserId) ?? null : null;
-    const displayIds = Array.from(
-      new Set([...topItems.map((item) => item.user_id), ...(meCandidate ? [meCandidate.user_id] : [])])
-    );
-    const nameMap = await fetchDisplayNames(displayIds);
-
-    items = applyDisplayNames(topItems, nameMap);
-    me = meCandidate ? applyDisplayNames([meCandidate], nameMap)[0] : null;
-  } else {
-    const range = normalizeDateRangeForPeriod(period, options.date, options.endDate);
-    const { data, error } = await supabase
-      .from("settlements")
-      .select("game_id, user_id, points_delta, is_correct, settled_at")
-      .gte("settled_at", range.fromIso)
-      .lt("settled_at", range.toIso)
-      .order("settled_at", { ascending: false });
-
-    if (error) {
-      throw new Error(`Failed to fetch settlements: ${error.message}`);
-    }
-
-    const settlementRows = (data as SettlementRow[] | null) ?? [];
-    const gameStatusMap = await fetchGameStatusMap(
-      supabase,
-      settlementRows.map((row) => row.game_id)
-    );
-    const scoredRows = settlementRows.filter((row) => gameStatusMap.get(row.game_id) !== "canceled");
-
-    const stats = new Map<string, { points: number; predictions: number; correct: number }>();
-    const streak = new Map<string, { current: number; blocked: boolean }>();
-    scoredRows.forEach((row) => {
-      const current = stats.get(row.user_id) ?? { points: 0, predictions: 0, correct: 0 };
-      current.points += row.points_delta;
-      current.predictions += 1;
-      if (row.is_correct) {
-        current.correct += 1;
-      }
-      stats.set(row.user_id, current);
-
-      const streakState = streak.get(row.user_id) ?? { current: 0, blocked: false };
-      if (!streakState.blocked) {
-        if (row.is_correct) {
-          streakState.current += 1;
-        } else {
-          streakState.blocked = true;
-        }
-      }
-      streak.set(row.user_id, streakState);
-    });
-
-    const nameMap = await fetchDisplayNames(Array.from(stats.keys()));
-    items = buildRankingItems(stats, nameMap).map((row) => ({
-      ...row,
-      current_streak: streak.get(row.user_id)?.current ?? 0
-    }));
-    total = items.length;
-    me = options.viewerUserId ? items.find((item) => item.user_id === options.viewerUserId) ?? null : null;
-  }
+  const me = options.viewerUserId
+    ? snapshot.items.find((item) => item.user_id === options.viewerUserId) ?? null
+    : null;
 
   return {
-    items: items.slice(0, options.limit),
+    items: snapshot.items.slice(0, options.limit),
     me,
-    total
+    total: snapshot.total
   };
 }
 
@@ -520,7 +592,10 @@ async function fetchDisplayNames(userIds: string[]): Promise<Map<string, UserIde
     return new Map<string, UserIdentity>();
   }
   const supabase = createServiceClient();
-  const { data, error } = await supabase.from("users").select("id, display_name").in("id", userIds);
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, display_name, favorite_team:teams!users_favorite_team_id_fkey(name)")
+    .in("id", userIds);
   if (error) {
     throw new Error(`Failed to fetch user names: ${error.message}`);
   }
@@ -528,7 +603,8 @@ async function fetchDisplayNames(userIds: string[]): Promise<Map<string, UserIde
   (data ?? []).forEach((row) => {
     result.set(row.id, {
       display_name: row.display_name,
-      public_code: publicUserCodeFromId(row.id)
+      public_code: publicUserCodeFromId(row.id),
+      favorite_team_name: normalizeTeamName(row.favorite_team as TeamNameRelation)
     });
   });
   return result;

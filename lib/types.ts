@@ -80,6 +80,7 @@ export type RankingItem = {
   user_id: string;
   display_name: string;
   public_code: string | null;
+  favorite_team_name?: string | null;
   points: number;
   predictions: number;
   correct: number;
