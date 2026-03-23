@@ -2,17 +2,20 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { todayJst } from "@/lib/time";
 
 const BONUS_MESSAGE_STORAGE_KEY = "yosobase-login-bonus-message";
 const BONUS_NOTICE_DURATION_MS = 5_000;
 
 type LoginBonusNotifierProps = {
   enabled: boolean;
+  onApplied?: (pointBalance: number) => void;
 };
 
 type LoginBonusResponse = {
   applied: boolean;
   bonus_points: number;
+  point_balance: number;
 };
 
 function readStoredMessage(): string | null {
@@ -42,13 +45,14 @@ function storeMessage(message: string) {
   }
 }
 
-export function LoginBonusNotifier({ enabled }: LoginBonusNotifierProps) {
+export function LoginBonusNotifier({ enabled, onApplied }: LoginBonusNotifierProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const lastCheckedRouteKeyRef = useRef<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [noticeSerial, setNoticeSerial] = useState(0);
+  const [dayKey, setDayKey] = useState(() => todayJst());
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -65,10 +69,41 @@ export function LoginBonusNotifier({ enabled }: LoginBonusNotifierProps) {
 
   useEffect(() => {
     if (!enabled) {
+      lastCheckedRouteKeyRef.current = null;
       return;
     }
 
-    const routeKey = `${pathname}?${searchParams.toString()}`;
+    function syncDayKey() {
+      setDayKey((current) => {
+        const next = todayJst();
+        return current === next ? current : next;
+      });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        syncDayKey();
+      }
+    }
+
+    syncDayKey();
+    window.addEventListener("focus", syncDayKey);
+    window.addEventListener("pageshow", syncDayKey);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", syncDayKey);
+      window.removeEventListener("pageshow", syncDayKey);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [enabled, pathname, searchParams]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const routeKey = `${dayKey}:${pathname}?${searchParams.toString()}`;
     if (lastCheckedRouteKeyRef.current === routeKey) {
       return;
     }
@@ -96,6 +131,7 @@ export function LoginBonusNotifier({ enabled }: LoginBonusNotifierProps) {
         storeMessage(nextMessage);
         setMessage(nextMessage);
         setNoticeSerial((current) => current + 1);
+        onApplied?.(result.point_balance ?? 0);
         startTransition(() => {
           router.refresh();
         });
@@ -109,7 +145,7 @@ export function LoginBonusNotifier({ enabled }: LoginBonusNotifierProps) {
     return () => {
       isActive = false;
     };
-  }, [enabled, pathname, router, searchParams, startTransition]);
+  }, [dayKey, enabled, onApplied, pathname, router, searchParams, startTransition]);
 
   useEffect(() => {
     if (!message) {

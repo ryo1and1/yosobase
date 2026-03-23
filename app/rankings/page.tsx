@@ -4,30 +4,14 @@ import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { ShareXButton } from "@/components/share-x-button";
 import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchRanking } from "@/lib/data";
-import { getViewerUserId } from "@/lib/guest-user";
-import { createServiceClient } from "@/lib/supabase";
 import { currentJstYear } from "@/lib/time";
 import { parseRankingPeriod } from "@/lib/validation";
+import { getRequestViewerUserId } from "@/lib/viewer-server";
 
 const lexend = Lexend({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"]
 });
-
-type TeamRelation = { name: string }[] | { name: string } | null;
-
-type UserFavoriteRow = {
-  id: string;
-  favorite_team: TeamRelation;
-};
-
-function normalizeTeamName(team: TeamRelation): string | null {
-  if (!team) return null;
-  if (Array.isArray(team)) {
-    return team[0]?.name ?? null;
-  }
-  return team.name ?? null;
-}
 
 function teamMark(name: string): string {
   const compact = name.replace(/\s+/g, "");
@@ -53,7 +37,7 @@ export default async function RankingsPage({
 }) {
   const params = await searchParams;
   const period = parseRankingPeriod(params.period ?? null);
-  const viewerUserId = await getViewerUserId();
+  const viewerUserId = await getRequestViewerUserId();
   const seasonYear = params.seasonYear ? Number(params.seasonYear) : currentJstYear();
   const rankingAd = getAdSenseUnitConfig("ranking");
 
@@ -66,41 +50,18 @@ export default async function RankingsPage({
   });
 
   const meText = ranking.me
-    ? `YosoBaseランキング ${ranking.me.rank}位 ${ranking.me.points}pt 的中率${Math.round(
-        ranking.me.hit_rate * 100
-      )}% #YosoBase`
+    ? `YosoBaseランキング ${ranking.me.rank}位・${ranking.me.points}pt・的中率 ${Math.round(ranking.me.hit_rate * 100)}% #YosoBase`
     : "YosoBaseでNPB予想に参加中 #YosoBase";
 
-  const userIds = ranking.items.map((row) => row.user_id);
-  const favoriteTeamMap = new Map<string, string>();
-  if (userIds.length > 0) {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, favorite_team:teams!users_favorite_team_id_fkey(name)")
-      .in("id", userIds);
-
-    if (error) {
-      throw new Error(`推し球団の取得に失敗しました: ${error.message}`);
-    }
-
-    (data as UserFavoriteRow[] | null)?.forEach((row) => {
-      const name = normalizeTeamName(row.favorite_team);
-      if (name) {
-        favoriteTeamMap.set(row.id, name);
-      }
-    });
-  }
-
   const showingText =
-    ranking.total === 0 ? "0 / 0人" : `1-${Math.min(ranking.items.length, 100)} / ${ranking.total}人`;
+    ranking.total === 0 ? "0 / 0件" : `1-${Math.min(ranking.items.length, 100)} / ${ranking.total}件`;
 
   return (
     <div className={`${lexend.className} leaderboard-page`}>
       <section className="leaderboard-head">
         <div>
           <h1>ランキング</h1>
-          <p>予想成績のランキングです。週次は JST 月曜 00:00 開始、日次は JST 集計です。</p>
+          <p>日次・週次・月次・シーズン別で、予想成績の上位ユーザーを確認できます。</p>
         </div>
         <div className="leaderboard-actions">
           <ShareXButton text={meText} eventName="share_click_ranking" className="leaderboard-share-btn" />
@@ -119,7 +80,7 @@ export default async function RankingsPage({
             className={`leaderboard-tab ${period === "monthly" ? "is-active" : ""}`}
             href="/rankings?period=monthly"
           >
-            月間
+            月次
           </Link>
           <Link
             className={`leaderboard-tab ${period === "season" ? "is-active" : ""}`}
@@ -130,7 +91,7 @@ export default async function RankingsPage({
         </div>
 
         {ranking.items.length === 0 ? (
-          <p className="leaderboard-empty">まだランキングデータがありません。予想の精算後に反映されます。</p>
+          <p className="leaderboard-empty">まだランキング対象のデータがありません。予想に参加して最初の成績を作ってください。</p>
         ) : (
           <div className="leaderboard-table-wrap">
             <table className="leaderboard-table">
@@ -138,15 +99,15 @@ export default async function RankingsPage({
                 <tr>
                   <th>順位</th>
                   <th>ユーザー</th>
-                  <th>推し球団</th>
+                  <th>推し</th>
                   <th>的中率</th>
                   <th>連勝</th>
-                  <th>ポイント</th>
+                  <th>獲得pt</th>
                 </tr>
               </thead>
               <tbody>
                 {ranking.items.slice(0, 100).map((row) => {
-                  const favoriteTeam = favoriteTeamMap.get(row.user_id) ?? "-";
+                  const favoriteTeam = row.favorite_team_name ?? "-";
                   const isMe = viewerUserId === row.user_id;
 
                   return (
@@ -162,7 +123,7 @@ export default async function RankingsPage({
                               {row.display_name}
                               {row.public_code ? ` #${row.public_code}` : ""}
                             </p>
-                            <small>{isMe ? "あなた" : "参加ユーザー"}</small>
+                            <small>{isMe ? "あなた" : "ユーザー"}</small>
                           </div>
                         </div>
                       </td>
@@ -199,18 +160,18 @@ export default async function RankingsPage({
                   <small>{ranking.me.public_code ? `公開ID #${ranking.me.public_code}` : "公開ID 未設定"}</small>
                 </div>
               </div>
-              <div className="leaderboard-me-meta">{Math.round(ranking.me.hit_rate * 100)}% 的中</div>
+              <div className="leaderboard-me-meta">{Math.round(ranking.me.hit_rate * 100)}% 的中率</div>
               <div className="leaderboard-me-points">{ranking.me.points.toLocaleString()} pt</div>
             </div>
           ) : (
             <div className="leaderboard-me-row is-empty">
               <p>
                 {viewerUserId
-                  ? "まだ成績が反映されていません。予想した試合の精算後に、あなたの順位がここに表示されます。"
-                  : "ログインして予想すると、精算後にあなたの順位がここに表示されます。"}
+                  ? "まだランキング対象の成績がありません。予想に参加して最初の順位を作ってください。"
+                  : "ログインして予想に参加すると、自分の順位をここで確認できます。"}
               </p>
               <Link href={viewerUserId ? "/" : "/login"} className="home-btn home-btn-primary">
-                {viewerUserId ? "今日の試合へ" : "ログインして参加"}
+                {viewerUserId ? "予想に参加する" : "ログインする"}
               </Link>
             </div>
           )}
@@ -218,7 +179,7 @@ export default async function RankingsPage({
       </section>
 
       <section className="leaderboard-footer">
-        <p>表示中: {showingText}</p>
+        <p>表示件数: {showingText}</p>
       </section>
       {rankingAd ? <AdSenseUnit client={rankingAd.client} slot={rankingAd.slot} className="leaderboard-ad-slot" /> : null}
     </div>

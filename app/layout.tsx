@@ -1,13 +1,10 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import "@/app/globals.css";
-import { HeaderAccountMenu } from "@/components/header-account-menu";
-import { LoginBonusNotifier } from "@/components/login-bonus-notifier";
+import { HeaderSessionPanel } from "@/components/header-session-panel";
 import { SiteFooter } from "@/components/site-footer";
 import { getAdSenseClientId, isAdSenseProductionEnabled } from "@/lib/ads";
 import { getAppBaseUrl } from "@/lib/app-url";
-import { fetchHeaderAccount } from "@/lib/data";
-import { getViewerUserId } from "@/lib/guest-user";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getAppBaseUrl()),
@@ -28,23 +25,8 @@ export const metadata: Metadata = {
   }
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const viewerUserId = await getViewerUserId();
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const adSenseClientId = isAdSenseProductionEnabled() ? getAdSenseClientId() : null;
-  let headerPoints = 0;
-  let headerAvatarLabel = "AC";
-
-  if (viewerUserId) {
-    try {
-      const account = await fetchHeaderAccount(viewerUserId);
-      headerPoints = account.pointBalance;
-      const trimmedName = account.displayName?.trim() ?? "";
-      headerAvatarLabel = Array.from(trimmedName)[0]?.toUpperCase() ?? "U";
-    } catch {
-      headerPoints = 0;
-      headerAvatarLabel = "U";
-    }
-  }
 
   return (
     <html lang="ja">
@@ -60,7 +42,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body suppressHydrationWarning>
         <div className="orb orb-a" aria-hidden />
         <div className="orb orb-b" aria-hidden />
-        <LoginBonusNotifier enabled={Boolean(viewerUserId)} />
         <header className="site-header">
           <div className="container header-inner">
             <div className="header-left">
@@ -75,22 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/about">ルール</Link>
               </nav>
             </div>
-
-            <div className="header-tools">
-              {viewerUserId ? (
-                <>
-                  <div className="header-points">
-                    <span>保有ポイント</span>
-                    <strong>{headerPoints.toLocaleString()} pt</strong>
-                  </div>
-                  <HeaderAccountMenu avatarLabel={headerAvatarLabel} />
-                </>
-              ) : (
-                <Link href="/login" className="header-auth-link">
-                  ログイン / 登録
-                </Link>
-              )}
-            </div>
+            <HeaderSessionPanel />
           </div>
         </header>
         <main className="container page-shell">{children}</main>
@@ -99,4 +65,3 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
-

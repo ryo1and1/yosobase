@@ -1,7 +1,7 @@
 import type { PredictionMode, PredictionOption } from "@/lib/types";
 
 export const INITIAL_POINT_BALANCE = 10_000;
-export const DAILY_LOGIN_BONUS_POINTS = 200;
+export const DAILY_LOGIN_BONUS_POINTS = 50;
 export const MAX_STAKE_PER_GAME = 1_000;
 export const LOCK_MINUTES_BEFORE_START = 5;
 export const ODDS_PAYOUT_RATE = 0.9;

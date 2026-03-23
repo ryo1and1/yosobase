@@ -3,11 +3,11 @@ import { INITIAL_POINT_BALANCE } from "@/lib/game-rules";
 import { FavoriteTeamForm } from "@/components/favorite-team-form";
 import { ShareXButton } from "@/components/share-x-button";
 import { fetchMeHistory, fetchMeSummary } from "@/lib/data";
-import { getViewerUserId } from "@/lib/guest-user";
 import { publicUserCodeFromId } from "@/lib/public-user-code";
 import { createServiceClient } from "@/lib/supabase";
 import { currentJstYear, formatJstDateTime } from "@/lib/time";
 import type { Team } from "@/lib/types";
+import { getRequestViewerUserId } from "@/lib/viewer-server";
 
 type TeamRelation = { name: string }[] | { name: string } | null;
 
@@ -33,7 +33,7 @@ function teamMark(name: string): string {
 }
 
 export default async function MePage() {
-  const viewerUserId = await getViewerUserId();
+  const viewerUserId = await getRequestViewerUserId();
 
   if (!viewerUserId) {
     return (
