@@ -54,23 +54,15 @@ function listWindowMonths(daysAhead: number): SyncTarget[] {
   return targets;
 }
 
-function listCurrentAndPreviousMonth(): SyncTarget[] {
-  const now = new Date();
-  const previous = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
-  const months = [getJstDateParts(previous), getJstDateParts(now)];
-  const seen = new Set<string>();
-  return months
-    .filter((month) => {
-      const key = `${month.year}-${String(month.month).padStart(2, "0")}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    })
-    .map((month) => {
-      return { year: month.year, month: month.month };
-    });
+function makeTodayResultTarget(): SyncTarget[] {
+  const today = getJstDateParts(new Date());
+  return [
+    {
+      year: today.year,
+      month: today.month,
+      targetDates: [today.dateKey]
+    }
+  ];
 }
 
 function makeTomorrowTarget(): SyncTarget[] {
@@ -95,7 +87,7 @@ function makeTargetList(request: NextRequest, mode: SyncMode): SyncTarget[] {
   }
 
   if (mode === "results_only") {
-    return listCurrentAndPreviousMonth();
+    return makeTodayResultTarget();
   }
   if (mode === "schedule_only") {
     return makeTomorrowTarget();
