@@ -353,7 +353,7 @@ function parseScheduleHtml(html: string, year: number, warnings: string[]): Sche
 
 function parseResultAnchorText(text: string): { home: string; away: string; homeScore: string; awayScore: string } | null {
   const normalized = normalizeText(text);
-  const matched = normalized.match(/^(\S+)\s+(\*|\d+)\s*-\s*(\*|\d+)\s+(\S+)$/);
+  const matched = normalized.match(/^(.+?)\s+(\*|\d+)\s*-\s*(\*|\d+)\s+(.+)$/);
   if (!matched) return null;
   return {
     home: matched[1],
@@ -363,25 +363,44 @@ function parseResultAnchorText(text: string): { home: string; away: string; home
   };
 }
 
-function parseResultsHtml(html: string, warnings: string[]): ResultGame[] {
+function buildDailyResultsUrl(date: string): string {
+  return `https://npb.jp/bis/${date.slice(0, 4)}/games/gm${date.replaceAll("-", "")}.html`;
+}
+
+function listDatesInMonth(year: number, month: number): string[] {
+  const lastDay = new Date(`${year}-${two(month)}-01T00:00:00+09:00`);
+  lastDay.setMonth(lastDay.getMonth() + 1, 0);
+
+  return Array.from({ length: lastDay.getDate() }, (_, index) => {
+    return toDateKey(year, month, index + 1);
+  });
+}
+
+function collectResultDates(
+  year: number,
+  month: number,
+  targetDateSet: Set<string> | null,
+  scheduleGames: ScheduleGame[]
+): string[] {
+  if (targetDateSet && targetDateSet.size > 0) {
+    return Array.from(targetDateSet).sort();
+  }
+
+  const scheduleDates = Array.from(new Set(scheduleGames.map((game) => game.date))).sort();
+  if (scheduleDates.length > 0) {
+    return scheduleDates;
+  }
+
+  return listDatesInMonth(year, month);
+}
+
+function parseResultsHtml(html: string, date: string, warnings: string[]): ResultGame[] {
   const $ = load(html);
   const rows: ResultGame[] = [];
   const seen = new Set<string>();
 
-  $("a[href*='/bis/'][href*='/games/s']").each((_, element) => {
+  $("a").each((_, element) => {
     const anchor = $(element);
-    const href = anchor.attr("href") ?? "";
-    const idMatch = href.match(/\/s(\d{8}\d+)\.html$/);
-    if (!idMatch) return;
-
-    const gameCode = idMatch[1];
-    if (seen.has(gameCode)) return;
-    seen.add(gameCode);
-
-    const dateMatch = gameCode.match(/^(\d{4})(\d{2})(\d{2})/);
-    if (!dateMatch) return;
-    const date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
-
     const parsed = parseResultAnchorText(anchor.text());
     if (!parsed) return;
 
@@ -391,6 +410,10 @@ function parseResultsHtml(html: string, warnings: string[]): ResultGame[] {
       warnings.push(`team_unmapped(result): ${parsed.home} vs ${parsed.away}`);
       return;
     }
+
+    const entryKey = `${date}:${homeTeamId}:${awayTeamId}`;
+    if (seen.has(entryKey)) return;
+    seen.add(entryKey);
 
     const homeScore = parseNumericScore(parsed.homeScore);
     const awayScore = parseNumericScore(parsed.awayScore);
@@ -525,7 +548,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
   const { year, month } = input;
   const targetDateSet = input.targetDates?.length ? new Set(input.targetDates) : null;
   const scheduleUrl = `https://npb.jp/games/${year}/schedule_${two(month)}_detail.html`;
-  const resultsUrl = `https://npb.jp/bis/${year}/calendar/index_${two(month)}.html`;
+  const resultsUrl = `https://npb.jp/bis/${year}/games/`;
 
   const result: NpbMonthlySyncResult = {
     year,
@@ -550,12 +573,14 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
 
   try {
     let scheduleHtml: string | null = null;
-    let resultsHtml: string | null = null;
+    let scheduleGames: ScheduleGame[] = [];
+    const resultGames: ResultGame[] = [];
     const fetchErrors: string[] = [];
 
     if (mode === "full" || mode === "schedule_only") {
       try {
         scheduleHtml = await fetchHtml(scheduleUrl);
+        scheduleGames = parseScheduleHtml(scheduleHtml, year, result.warnings);
       } catch (error) {
         syncErrors += 1;
         const message = error instanceof Error ? error.message : `Failed to fetch ${scheduleUrl}`;
@@ -565,30 +590,30 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     }
 
     if (mode !== "schedule_only") {
-      try {
-        resultsHtml = await fetchHtml(resultsUrl);
-      } catch (error) {
-        syncErrors += 1;
-        const message = error instanceof Error ? error.message : `Failed to fetch ${resultsUrl}`;
-        result.warnings.push(`results_fetch_failed: ${message}`);
-        fetchErrors.push(message);
+      const resultDates = collectResultDates(year, month, targetDateSet, scheduleGames).filter((date) =>
+        date.startsWith(`${year}-${two(month)}-`)
+      );
+
+      for (const date of resultDates) {
+        const dailyResultsUrl = buildDailyResultsUrl(date);
+        try {
+          const dailyResultsHtml = await fetchHtml(dailyResultsUrl);
+          resultGames.push(...parseResultsHtml(dailyResultsHtml, date, result.warnings));
+        } catch (error) {
+          syncErrors += 1;
+          const message = error instanceof Error ? error.message : `Failed to fetch ${dailyResultsUrl}`;
+          result.warnings.push(`results_fetch_failed(${date}): ${message}`);
+          fetchErrors.push(message);
+        }
       }
     }
 
-    if (!scheduleHtml && !resultsHtml) {
+    if (!scheduleHtml && resultGames.length === 0) {
       throw new Error(fetchErrors[0] ?? "failed to fetch schedule and results pages");
     }
-
-    const scheduleGames =
-      (mode === "full" || mode === "schedule_only") && scheduleHtml
-        ? parseScheduleHtml(scheduleHtml, year, result.warnings)
-        : [];
     const filteredScheduleGames = targetDateSet
       ? scheduleGames.filter((game) => targetDateSet.has(game.date))
       : scheduleGames;
-    const resultGames = resultsHtml ? parseResultsHtml(resultsHtml, result.warnings).filter((game) => {
-      return game.date.startsWith(`${year}-${two(month)}-`);
-    }) : [];
 
     result.fetched.scheduleGames = filteredScheduleGames.length;
     result.fetched.resultGames = resultGames.length;
