@@ -394,25 +394,37 @@ function collectResultDates(
   return listDatesInMonth(year, month);
 }
 
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function teamNamePattern(): string {
+  return Object.keys(TEAM_NAME_MAP)
+    .sort((a, b) => b.length - a.length)
+    .map((name) => escapeRegex(name))
+    .join("|");
+}
+
 function parseResultsHtml(html: string, date: string, warnings: string[]): ResultGame[] {
-  const $ = load(html);
   const rows: ResultGame[] = [];
   const seen = new Set<string>();
+  const normalizedPageText = normalizeText(load(html).root().text());
+  const teamPattern = teamNamePattern();
+  const regex = new RegExp(`(${teamPattern})\\s+(\\d+)\\s*-\\s*(\\d+)\\s+(${teamPattern})`, "g");
 
-  $("a").each((_, element) => {
-    const anchor = $(element);
-    const parsed = parseResultAnchorText(anchor.text());
-    if (!parsed) return;
+  for (const match of normalizedPageText.matchAll(regex)) {
+    const parsed = parseResultAnchorText(`${match[1]} ${match[2]}-${match[3]} ${match[4]}`);
+    if (!parsed) continue;
 
     const homeTeamId = toTeamId(parsed.home);
     const awayTeamId = toTeamId(parsed.away);
     if (!homeTeamId || !awayTeamId) {
       warnings.push(`team_unmapped(result): ${parsed.home} vs ${parsed.away}`);
-      return;
+      continue;
     }
 
     const entryKey = `${date}:${homeTeamId}:${awayTeamId}`;
-    if (seen.has(entryKey)) return;
+    if (seen.has(entryKey)) continue;
     seen.add(entryKey);
 
     const homeScore = parseNumericScore(parsed.homeScore);
@@ -429,7 +441,7 @@ function parseResultsHtml(html: string, date: string, warnings: string[]): Resul
         scoreAway: awayScore,
         scoreText: `${parsed.homeScore}-${parsed.awayScore}`
       });
-      return;
+      continue;
     }
 
     let winner: Side | null = null;
@@ -447,7 +459,7 @@ function parseResultsHtml(html: string, date: string, warnings: string[]): Resul
       scoreAway: awayScore,
       scoreText: `${homeScore}-${awayScore}`
     });
-  });
+  }
 
   return rows;
 }
