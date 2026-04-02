@@ -54,15 +54,29 @@ function listWindowMonths(daysAhead: number): SyncTarget[] {
   return targets;
 }
 
-function makeTodayResultTarget(): SyncTarget[] {
-  const today = getJstDateParts(new Date());
-  return [
-    {
-      year: today.year,
-      month: today.month,
-      targetDates: [today.dateKey]
+function makeRecentResultTargets(daysBack: number): SyncTarget[] {
+  const grouped = new Map<string, SyncTarget>();
+
+  for (let offset = 0; offset <= daysBack; offset += 1) {
+    const target = getJstDateParts(new Date(Date.now() - offset * 24 * 60 * 60 * 1000));
+    const key = `${target.year}-${String(target.month).padStart(2, "0")}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.targetDates = Array.from(new Set([...(existing.targetDates ?? []), target.dateKey])).sort();
+      continue;
     }
-  ];
+
+    grouped.set(key, {
+      year: target.year,
+      month: target.month,
+      targetDates: [target.dateKey]
+    });
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.month - b.month;
+  });
 }
 
 function makeTomorrowTarget(): SyncTarget[] {
@@ -87,7 +101,7 @@ function makeTargetList(request: NextRequest, mode: SyncMode): SyncTarget[] {
   }
 
   if (mode === "results_only") {
-    return makeTodayResultTarget();
+    return makeRecentResultTargets(2);
   }
   if (mode === "schedule_only") {
     return makeTomorrowTarget();

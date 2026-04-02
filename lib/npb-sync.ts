@@ -43,6 +43,15 @@ type ResultGame = {
   scoreText: string;
 };
 
+type OverviewResultGame = {
+  date: string;
+  stadium: string;
+  winner: Side | null;
+  scoreHome: number;
+  scoreAway: number;
+  scoreText: string;
+};
+
 type DbGameRow = {
   id: string;
   season_year: number;
@@ -367,6 +376,10 @@ function buildDailyResultsUrl(date: string): string {
   return `https://npb.jp/bis/${date.slice(0, 4)}/games/gm${date.replaceAll("-", "")}.html`;
 }
 
+function buildYearOverviewUrl(year: number): string {
+  return `https://npb.jp/games/${year}/`;
+}
+
 function listDatesInMonth(year: number, month: number): string[] {
   const lastDay = new Date(`${year}-${two(month)}-01T00:00:00+09:00`);
   lastDay.setMonth(lastDay.getMonth() + 1, 0);
@@ -403,6 +416,63 @@ function teamNamePattern(): string {
     .sort((a, b) => b.length - a.length)
     .map((name) => escapeRegex(name))
     .join("|");
+}
+
+function parseOverviewResultsHtml(html: string, year: number, targetDates: Set<string>, warnings: string[]): OverviewResultGame[] {
+  const $ = load(html);
+  const rows: OverviewResultGame[] = [];
+  const seen = new Set<string>();
+  let currentDate: string | null = null;
+
+  $("h1, h2, h3, h4, h5, h6, a").each((_, element) => {
+    const text = normalizeText($(element).text());
+    const dateMatch = text.match(/^(\d{1,2})月(\d{1,2})日/);
+    if (dateMatch) {
+      currentDate = toDateKey(year, Number.parseInt(dateMatch[1], 10), Number.parseInt(dateMatch[2], 10));
+      return;
+    }
+
+    if (!currentDate || !targetDates.has(currentDate)) {
+      return;
+    }
+
+    const scoreMatch = text.match(/^(\d+)\s*-\s*(\d+)\s+(.+)$/);
+    if (!scoreMatch) {
+      return;
+    }
+
+    const scoreHome = Number.parseInt(scoreMatch[1], 10);
+    const scoreAway = Number.parseInt(scoreMatch[2], 10);
+    const stadium = normalizeStadiumName(scoreMatch[3]);
+    if (!stadium) {
+      return;
+    }
+
+    const entryKey = `${currentDate}:${stadium}`;
+    if (seen.has(entryKey)) {
+      return;
+    }
+    seen.add(entryKey);
+
+    let winner: Side | null = "draw";
+    if (scoreHome > scoreAway) winner = "home";
+    if (scoreAway > scoreHome) winner = "away";
+
+    rows.push({
+      date: currentDate,
+      stadium,
+      winner,
+      scoreHome,
+      scoreAway,
+      scoreText: `${scoreHome}-${scoreAway}`
+    });
+  });
+
+  if (targetDates.size > 0 && rows.length === 0) {
+    warnings.push(`overview_results_empty: ${Array.from(targetDates).join(",")}`);
+  }
+
+  return rows;
 }
 
 function parseResultsHtml(html: string, date: string, warnings: string[]): ResultGame[] {
@@ -587,6 +657,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     let scheduleHtml: string | null = null;
     let scheduleGames: ScheduleGame[] = [];
     const resultGames: ResultGame[] = [];
+    const overviewResults: OverviewResultGame[] = [];
     const fetchErrors: string[] = [];
 
     if (mode === "full" || mode === "schedule_only") {
@@ -605,6 +676,17 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       const resultDates = collectResultDates(year, month, targetDateSet, scheduleGames).filter((date) =>
         date.startsWith(`${year}-${two(month)}-`)
       );
+      const resultDateSet = new Set(resultDates);
+
+      try {
+        const overviewHtml = await fetchHtml(buildYearOverviewUrl(year));
+        overviewResults.push(...parseOverviewResultsHtml(overviewHtml, year, resultDateSet, result.warnings));
+      } catch (error) {
+        syncErrors += 1;
+        const message = error instanceof Error ? error.message : `Failed to fetch ${buildYearOverviewUrl(year)}`;
+        result.warnings.push(`overview_fetch_failed: ${message}`);
+        fetchErrors.push(message);
+      }
 
       for (const date of resultDates) {
         const dailyResultsUrl = buildDailyResultsUrl(date);
@@ -620,7 +702,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       }
     }
 
-    if (!scheduleHtml && resultGames.length === 0) {
+    if (!scheduleHtml && resultGames.length === 0 && overviewResults.length === 0) {
       throw new Error(fetchErrors[0] ?? "failed to fetch schedule and results pages");
     }
     const filteredScheduleGames = targetDateSet
@@ -783,6 +865,72 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
 
       if (updateError) {
         throw new Error(`Failed to finalize game ${existing.id}: ${updateError.message}`);
+      }
+
+      existing.status = "final";
+      existing.winner = game.winner;
+      existing.score_home = game.scoreHome;
+      existing.score_away = game.scoreAway;
+      existing.external_source = NPB_SOURCE;
+      existing.external_game_key = derivedExternalGameKey;
+      pushMapRow(gameMaps.byExternal, derivedExternalGameKey, existing);
+      result.db.finalized += 1;
+    }
+
+    for (const game of overviewResults) {
+      const candidates = existingRows.filter((row) => {
+        return (
+          toJstDate(row.start_at) === game.date &&
+          normalizeStadiumName(row.stadium ?? "") === game.stadium
+        );
+      });
+
+      if (candidates.length === 0) {
+        result.unresolvedResults.push({
+          date: game.date,
+          home: game.stadium,
+          away: "overview",
+          score: game.scoreText
+        });
+        continue;
+      }
+
+      const existing = pickBestCandidate(candidates, null, true);
+      const derivedExternalGameKey = buildExternalGameKey(
+        game.date,
+        existing.home_team_id,
+        existing.away_team_id,
+        toJstTime(existing.start_at),
+        existing.stadium
+      );
+
+      const unchanged =
+        existing.status === "final" &&
+        existing.winner === game.winner &&
+        existing.score_home === game.scoreHome &&
+        existing.score_away === game.scoreAway &&
+        existing.external_source === NPB_SOURCE &&
+        existing.external_game_key === derivedExternalGameKey;
+
+      if (unchanged) {
+        result.db.unchanged += 1;
+        continue;
+      }
+
+      const { error: updateError } = await supabase
+        .from("games")
+        .update({
+          status: "final",
+          winner: game.winner,
+          score_home: game.scoreHome,
+          score_away: game.scoreAway,
+          external_source: NPB_SOURCE,
+          external_game_key: derivedExternalGameKey
+        })
+        .eq("id", existing.id);
+
+      if (updateError) {
+        throw new Error(`Failed to finalize overview game ${existing.id}: ${updateError.message}`);
       }
 
       existing.status = "final";
