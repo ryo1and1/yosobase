@@ -164,6 +164,12 @@ function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${two(month)}-${two(day)}`;
 }
 
+function isValidDateKey(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+  return Number.isFinite(parsed.getTime()) && toJstDate(parsed.toISOString()) === date;
+}
+
 function normalizeText(input: string): string {
   return input
     .normalize("NFKC")
@@ -223,6 +229,10 @@ function toJstTime(iso: string): string {
     minute: "2-digit",
     hour12: false
   }).format(new Date(iso));
+}
+
+function todayDateKeyJst(): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: JST }).format(new Date());
 }
 
 function buildLegacyKey(date: string, homeTeamId: TeamId, awayTeamId: TeamId): string {
@@ -396,15 +406,17 @@ function collectResultDates(
   scheduleGames: ScheduleGame[]
 ): string[] {
   if (targetDateSet && targetDateSet.size > 0) {
-    return Array.from(targetDateSet).sort();
+    return Array.from(targetDateSet).filter(isValidDateKey).sort();
   }
 
-  const scheduleDates = Array.from(new Set(scheduleGames.map((game) => game.date))).sort();
+  const scheduleDates = Array.from(new Set(scheduleGames.map((game) => game.date)))
+    .filter(isValidDateKey)
+    .sort();
   if (scheduleDates.length > 0) {
     return scheduleDates;
   }
 
-  return listDatesInMonth(year, month);
+  return listDatesInMonth(year, month).filter(isValidDateKey);
 }
 
 function escapeRegex(input: string): string {
@@ -673,31 +685,33 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     }
 
     if (mode !== "schedule_only") {
-      const resultDates = collectResultDates(year, month, targetDateSet, scheduleGames).filter((date) =>
-        date.startsWith(`${year}-${two(month)}-`)
-      );
+      const resultDates = collectResultDates(year, month, targetDateSet, scheduleGames).filter((date) => {
+        return date.startsWith(`${year}-${two(month)}-`) && date <= todayDateKeyJst();
+      });
       const resultDateSet = new Set(resultDates);
 
-      try {
-        const overviewHtml = await fetchHtml(buildYearOverviewUrl(year));
-        overviewResults.push(...parseOverviewResultsHtml(overviewHtml, year, resultDateSet, result.warnings));
-      } catch (error) {
-        syncErrors += 1;
-        const message = error instanceof Error ? error.message : `Failed to fetch ${buildYearOverviewUrl(year)}`;
-        result.warnings.push(`overview_fetch_failed: ${message}`);
-        fetchErrors.push(message);
-      }
-
-      for (const date of resultDates) {
-        const dailyResultsUrl = buildDailyResultsUrl(date);
+      if (resultDateSet.size > 0) {
         try {
-          const dailyResultsHtml = await fetchHtml(dailyResultsUrl);
-          resultGames.push(...parseResultsHtml(dailyResultsHtml, date, result.warnings));
+          const overviewHtml = await fetchHtml(buildYearOverviewUrl(year));
+          overviewResults.push(...parseOverviewResultsHtml(overviewHtml, year, resultDateSet, result.warnings));
         } catch (error) {
           syncErrors += 1;
-          const message = error instanceof Error ? error.message : `Failed to fetch ${dailyResultsUrl}`;
-          result.warnings.push(`results_fetch_failed(${date}): ${message}`);
+          const message = error instanceof Error ? error.message : `Failed to fetch ${buildYearOverviewUrl(year)}`;
+          result.warnings.push(`overview_fetch_failed: ${message}`);
           fetchErrors.push(message);
+        }
+
+        for (const date of resultDates) {
+          const dailyResultsUrl = buildDailyResultsUrl(date);
+          try {
+            const dailyResultsHtml = await fetchHtml(dailyResultsUrl);
+            resultGames.push(...parseResultsHtml(dailyResultsHtml, date, result.warnings));
+          } catch (error) {
+            syncErrors += 1;
+            const message = error instanceof Error ? error.message : `Failed to fetch ${dailyResultsUrl}`;
+            result.warnings.push(`results_fetch_failed(${date}): ${message}`);
+            fetchErrors.push(message);
+          }
         }
       }
     }
