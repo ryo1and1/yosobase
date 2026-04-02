@@ -436,7 +436,7 @@ function parseOverviewResultsHtml(html: string, year: number, targetDates: Set<s
       return;
     }
 
-    const scoreMatch = text.match(/^(\d+)\s*-\s*(\d+)\s+(.+)$/);
+    const scoreMatch = text.match(/^(\d+)\s*-\s*(\d+)\s+（(.+?)）/);
     if (!scoreMatch) {
       return;
     }
