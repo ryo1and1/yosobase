@@ -663,11 +663,13 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
     const resultGames: ResultGame[] = [];
     const overviewResults: OverviewResultGame[] = [];
     const fetchErrors: string[] = [];
+    let successfulSourceFetches = 0;
 
     if (mode === "full" || mode === "schedule_only") {
       try {
         scheduleHtml = await fetchHtml(scheduleUrl);
         scheduleGames = parseScheduleHtml(scheduleHtml, year, result.warnings);
+        successfulSourceFetches += 1;
       } catch (error) {
         syncErrors += 1;
         const message = error instanceof Error ? error.message : `Failed to fetch ${scheduleUrl}`;
@@ -686,6 +688,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
         try {
           const overviewHtml = await fetchHtml(buildYearOverviewUrl(year));
           overviewResults.push(...parseOverviewResultsHtml(overviewHtml, year, resultDateSet, result.warnings));
+          successfulSourceFetches += 1;
         } catch (error) {
           syncErrors += 1;
           const message = error instanceof Error ? error.message : `Failed to fetch ${buildYearOverviewUrl(year)}`;
@@ -698,6 +701,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
           try {
             const dailyResultsHtml = await fetchHtml(dailyResultsUrl);
             resultGames.push(...parseResultsHtml(dailyResultsHtml, date, result.warnings));
+            successfulSourceFetches += 1;
           } catch (error) {
             syncErrors += 1;
             const message = error instanceof Error ? error.message : `Failed to fetch ${dailyResultsUrl}`;
@@ -708,7 +712,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       }
     }
 
-    if (!scheduleHtml && resultGames.length === 0 && overviewResults.length === 0) {
+    if (successfulSourceFetches === 0) {
       throw new Error(fetchErrors[0] ?? "failed to fetch schedule and results pages");
     }
     const filteredScheduleGames = targetDateSet
