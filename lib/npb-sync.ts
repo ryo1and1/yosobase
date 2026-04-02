@@ -83,6 +83,7 @@ export type NpbMonthlySyncResult = {
   source: {
     scheduleUrl: string;
     resultsUrl: string;
+    dailyResultsBaseUrl?: string;
   };
   fetched: {
     scheduleGames: number;
@@ -430,12 +431,13 @@ function teamNamePattern(): string {
     .join("|");
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function parseOverviewResultsHtml(html: string, year: number, targetDates: Set<string>, warnings: string[]): OverviewResultGame[] {
   const rows: OverviewResultGame[] = [];
   const seen = new Set<string>();
   const pageText = normalizeText(load(html).root().text());
-  const sectionRegex = /(\d{1,2})月(\d{1,2})日（[月火水木金土日]）([\s\S]*?)(?=\d{1,2}月\d{1,2}日（[月火水木金土日]）|$)/g;
-  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+（(.+?)）\s+試合終了/g;
+  const sectionRegex = /(\d{1,2})月(\d{1,2})日\(([月火水木金土日])\)([\s\S]*?)(?=\d{1,2}月\d{1,2}日\([月火水木金土日]\)|$)/g;
+  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+\((.+?)\)\s+試合終了/g;
 
   for (const section of pageText.matchAll(sectionRegex)) {
     const currentDate = toDateKey(year, Number.parseInt(section[1], 10), Number.parseInt(section[2], 10));
@@ -444,6 +446,120 @@ function parseOverviewResultsHtml(html: string, year: number, targetDates: Set<s
     }
 
     for (const scoreMatch of section[3].matchAll(scoreRegex)) {
+      const scoreHome = Number.parseInt(scoreMatch[1], 10);
+      const scoreAway = Number.parseInt(scoreMatch[2], 10);
+      const stadium = normalizeStadiumName(scoreMatch[3]);
+      if (!stadium) {
+        continue;
+      }
+
+      const entryKey = `${currentDate}:${stadium}`;
+      if (seen.has(entryKey)) {
+        continue;
+      }
+      seen.add(entryKey);
+
+      let winner: Side | null = "draw";
+      if (scoreHome > scoreAway) winner = "home";
+      if (scoreAway > scoreHome) winner = "away";
+
+      rows.push({
+        date: currentDate,
+        stadium,
+        winner,
+        scoreHome,
+        scoreAway,
+        scoreText: `${scoreHome}-${scoreAway}`
+      });
+    }
+  }
+
+  if (targetDates.size > 0 && rows.length === 0) {
+    warnings.push(`overview_results_empty: ${Array.from(targetDates).join(",")}`);
+  }
+
+  return rows;
+}
+
+// The NPB year overview page is a user-facing速報 page. Parse it separately from
+// the internal BIS result pages because this page updates earlier and has a
+// different text structure.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function parseYearOverviewResultsHtml(
+  html: string,
+  year: number,
+  targetDates: Set<string>,
+  warnings: string[]
+): OverviewResultGame[] {
+  const rows: OverviewResultGame[] = [];
+  const seen = new Set<string>();
+  const pageText = normalizeText(load(html).root().text());
+  const sectionRegex = /(\d{1,2})\u6708(\d{1,2})\u65e5\(([月火水木金土日])\)\s*([\s\S]*?)(?=\d{1,2}\u6708\d{1,2}\u65e5\([月火水木金土日]\)|$)/g;
+  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+\((.+?)\)\s+\u8A66\u5408\u7D42\u4E86/g;
+
+  for (const section of pageText.matchAll(sectionRegex)) {
+    const currentDate = toDateKey(year, Number.parseInt(section[1], 10), Number.parseInt(section[2], 10));
+    if (!targetDates.has(currentDate)) {
+      continue;
+    }
+
+    const sectionBody = section[4] ?? "";
+    for (const scoreMatch of sectionBody.matchAll(scoreRegex)) {
+      const scoreHome = Number.parseInt(scoreMatch[1], 10);
+      const scoreAway = Number.parseInt(scoreMatch[2], 10);
+      const stadium = normalizeStadiumName(scoreMatch[3]);
+      if (!stadium) {
+        continue;
+      }
+
+      const entryKey = `${currentDate}:${stadium}`;
+      if (seen.has(entryKey)) {
+        continue;
+      }
+      seen.add(entryKey);
+
+      let winner: Side | null = "draw";
+      if (scoreHome > scoreAway) winner = "home";
+      if (scoreAway > scoreHome) winner = "away";
+
+      rows.push({
+        date: currentDate,
+        stadium,
+        winner,
+        scoreHome,
+        scoreAway,
+        scoreText: `${scoreHome}-${scoreAway}`
+      });
+    }
+  }
+
+  if (targetDates.size > 0 && rows.length === 0) {
+    warnings.push(`overview_results_empty: ${Array.from(targetDates).join(",")}`);
+  }
+
+  return rows;
+}
+
+function parseYearOverviewResultsHtmlSafe(
+  html: string,
+  year: number,
+  targetDates: Set<string>,
+  warnings: string[]
+): OverviewResultGame[] {
+  const rows: OverviewResultGame[] = [];
+  const seen = new Set<string>();
+  const pageText = normalizeText(load(html).root().text());
+  const sectionRegex = /(\d{1,2})\u6708(\d{1,2})\u65e5\(([^)]+)\)\s*([\s\S]*?)(?=\d{1,2}\u6708\d{1,2}\u65e5\([^)]+\)|$)/g;
+  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+\((.+?)\)\s+\u8A66\u5408\u7D42\u4E86/g;
+
+  for (const section of pageText.matchAll(sectionRegex)) {
+    const currentDate = toDateKey(year, Number.parseInt(section[1], 10), Number.parseInt(section[2], 10));
+    if (!targetDates.has(currentDate)) {
+      continue;
+    }
+
+    const sectionBody = section[4] ?? "";
+    for (const scoreMatch of sectionBody.matchAll(scoreRegex)) {
       const scoreHome = Number.parseInt(scoreMatch[1], 10);
       const scoreAway = Number.parseInt(scoreMatch[2], 10);
       const stadium = normalizeStadiumName(scoreMatch[3]);
@@ -634,13 +750,14 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
   const { year, month } = input;
   const targetDateSet = input.targetDates?.length ? new Set(input.targetDates) : null;
   const scheduleUrl = `https://npb.jp/games/${year}/schedule_${two(month)}_detail.html`;
-  const resultsUrl = `https://npb.jp/bis/${year}/games/`;
+  const resultsUrl = buildYearOverviewUrl(year);
+  const dailyResultsBaseUrl = `https://npb.jp/bis/${year}/games/`;
 
   const result: NpbMonthlySyncResult = {
     year,
     month,
     mode,
-    source: { scheduleUrl, resultsUrl },
+    source: { scheduleUrl, resultsUrl, dailyResultsBaseUrl },
     fetched: {
       scheduleGames: 0,
       resultGames: 0
@@ -687,7 +804,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       if (resultDateSet.size > 0) {
         try {
           const overviewHtml = await fetchHtml(buildYearOverviewUrl(year));
-          overviewResults.push(...parseOverviewResultsHtml(overviewHtml, year, resultDateSet, result.warnings));
+          overviewResults.push(...parseYearOverviewResultsHtmlSafe(overviewHtml, year, resultDateSet, result.warnings));
           successfulSourceFetches += 1;
         } catch (error) {
           syncErrors += 1;
@@ -720,7 +837,7 @@ export async function syncNpbMonthlyGames(input: NpbMonthlySyncInput): Promise<N
       : scheduleGames;
 
     result.fetched.scheduleGames = filteredScheduleGames.length;
-    result.fetched.resultGames = resultGames.length;
+    result.fetched.resultGames = Math.max(resultGames.length, overviewResults.length);
 
     const supabase = createServiceClient();
     const monthRange = getMonthRange(year, month);
