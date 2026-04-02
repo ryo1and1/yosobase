@@ -431,54 +431,46 @@ function teamNamePattern(): string {
 }
 
 function parseOverviewResultsHtml(html: string, year: number, targetDates: Set<string>, warnings: string[]): OverviewResultGame[] {
-  const $ = load(html);
   const rows: OverviewResultGame[] = [];
   const seen = new Set<string>();
-  let currentDate: string | null = null;
+  const pageText = normalizeText(load(html).root().text());
+  const sectionRegex = /(\d{1,2})月(\d{1,2})日（[月火水木金土日]）([\s\S]*?)(?=\d{1,2}月\d{1,2}日（[月火水木金土日]）|$)/g;
+  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+（(.+?)）\s+試合終了/g;
 
-  $("h1, h2, h3, h4, h5, h6, a").each((_, element) => {
-    const text = normalizeText($(element).text());
-    const dateMatch = text.match(/^(\d{1,2})月(\d{1,2})日/);
-    if (dateMatch) {
-      currentDate = toDateKey(year, Number.parseInt(dateMatch[1], 10), Number.parseInt(dateMatch[2], 10));
-      return;
+  for (const section of pageText.matchAll(sectionRegex)) {
+    const currentDate = toDateKey(year, Number.parseInt(section[1], 10), Number.parseInt(section[2], 10));
+    if (!targetDates.has(currentDate)) {
+      continue;
     }
 
-    if (!currentDate || !targetDates.has(currentDate)) {
-      return;
+    for (const scoreMatch of section[3].matchAll(scoreRegex)) {
+      const scoreHome = Number.parseInt(scoreMatch[1], 10);
+      const scoreAway = Number.parseInt(scoreMatch[2], 10);
+      const stadium = normalizeStadiumName(scoreMatch[3]);
+      if (!stadium) {
+        continue;
+      }
+
+      const entryKey = `${currentDate}:${stadium}`;
+      if (seen.has(entryKey)) {
+        continue;
+      }
+      seen.add(entryKey);
+
+      let winner: Side | null = "draw";
+      if (scoreHome > scoreAway) winner = "home";
+      if (scoreAway > scoreHome) winner = "away";
+
+      rows.push({
+        date: currentDate,
+        stadium,
+        winner,
+        scoreHome,
+        scoreAway,
+        scoreText: `${scoreHome}-${scoreAway}`
+      });
     }
-
-    const scoreMatch = text.match(/^(\d+)\s*-\s*(\d+)\s+（(.+?)）/);
-    if (!scoreMatch) {
-      return;
-    }
-
-    const scoreHome = Number.parseInt(scoreMatch[1], 10);
-    const scoreAway = Number.parseInt(scoreMatch[2], 10);
-    const stadium = normalizeStadiumName(scoreMatch[3]);
-    if (!stadium) {
-      return;
-    }
-
-    const entryKey = `${currentDate}:${stadium}`;
-    if (seen.has(entryKey)) {
-      return;
-    }
-    seen.add(entryKey);
-
-    let winner: Side | null = "draw";
-    if (scoreHome > scoreAway) winner = "home";
-    if (scoreAway > scoreHome) winner = "away";
-
-    rows.push({
-      date: currentDate,
-      stadium,
-      winner,
-      scoreHome,
-      scoreAway,
-      scoreText: `${scoreHome}-${scoreAway}`
-    });
-  });
+  }
 
   if (targetDates.size > 0 && rows.length === 0) {
     warnings.push(`overview_results_empty: ${Array.from(targetDates).join(",")}`);
