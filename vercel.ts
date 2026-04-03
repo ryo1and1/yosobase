@@ -1,14 +1,11 @@
-const cronSecret = process.env.CRON_SECRET;
-
-const productionCrons = cronSecret
-  ? [
-      {
-        path: `/api/cron/daily-maintenance?secret=${encodeURIComponent(cronSecret)}`,
-        schedule: "30 14 * * *"
-      }
-    ]
-  : [];
-
 export const config = {
-  crons: process.env.VERCEL_ENV === "production" ? productionCrons : []
+  // Vercel cron definitions should be static so they are always emitted into
+  // the production deployment output. Authentication is handled by CRON_SECRET
+  // via the Authorization header on Vercel's side.
+  crons: [
+    {
+      path: "/api/cron/daily-maintenance",
+      schedule: "30 14 * * *"
+    }
+  ]
 };
