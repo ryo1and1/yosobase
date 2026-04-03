@@ -11,10 +11,25 @@ function safeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-// Vercel Cron cannot attach custom auth headers, so cron routes use
-// a shared secret in the query string for scheduled invocations.
+function getBearerSecret(request: NextRequest): string | null {
+  const authorization = request.headers.get("authorization");
+  if (!authorization) {
+    return null;
+  }
+
+  const [scheme, token] = authorization.split(/\s+/, 2);
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return null;
+  }
+
+  return token;
+}
+
+// Vercel Cron uses the Authorization header when CRON_SECRET is configured.
+// Keep the query-string secret as a fallback for internal step chaining and
+// manual invocations from the admin UI.
 export function isCronAuthorized(request: NextRequest): boolean {
-  const actual = request.nextUrl.searchParams.get("secret");
+  const actual = request.nextUrl.searchParams.get("secret") ?? getBearerSecret(request);
   if (!actual) {
     return false;
   }
