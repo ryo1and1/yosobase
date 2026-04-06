@@ -36,7 +36,35 @@ const toOptionalInt = (value: string): number | null => {
   return Number.isInteger(parsed) ? parsed : null;
 };
 const summaryNumber = (summary: Record<string, unknown> | null, ...keys: string[]) => keys.map((key) => summary?.[key]).find((value): value is number => typeof value === "number") ?? 0;
-const summaryWarnings = (summary: Record<string, unknown> | null) => Array.isArray(summary?.warnings) ? summary.warnings.filter((value): value is string => typeof value === "string") : [];
+const formatWarningDateList = (value: string) => {
+  const dates = value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (dates.length === 0) return "";
+  if (dates.length === 1) return dates[0];
+  return `${dates[0]} ほか${dates.length - 1}日`;
+};
+const formatSyncWarning = (warning: string) => {
+  const overviewMatch = warning.match(/^overview_results_empty:\s*(.+)$/);
+  if (overviewMatch) {
+    const dates = formatWarningDateList(overviewMatch[1]);
+    return dates ? `年別速報ページの結果概要を取得できませんでした (${dates})` : "年別速報ページの結果概要を取得できませんでした";
+  }
+  const overviewFetchMatch = warning.match(/^overview_fetch_failed:\s*(.+)$/);
+  if (overviewFetchMatch) return `年別速報ページの取得に失敗しました: ${overviewFetchMatch[1]}`;
+  const resultsFetchMatch = warning.match(/^results_fetch_failed\(([^)]+)\):\s*(.+)$/);
+  if (resultsFetchMatch) return `${resultsFetchMatch[1]} の日別結果ページ取得に失敗しました: ${resultsFetchMatch[2]}`;
+  const scheduleFetchMatch = warning.match(/^schedule_fetch_failed:\s*(.+)$/);
+  if (scheduleFetchMatch) return `日程ページの取得に失敗しました: ${scheduleFetchMatch[1]}`;
+  const teamScheduleMatch = warning.match(/^team_unmapped\(schedule\):\s*(.+)$/);
+  if (teamScheduleMatch) return `日程ページで未対応のチーム名が見つかりました: ${teamScheduleMatch[1]}`;
+  const teamResultMatch = warning.match(/^team_unmapped\(result\):\s*(.+)$/);
+  if (teamResultMatch) return `結果ページで未対応のチーム名が見つかりました: ${teamResultMatch[1]}`;
+  return warning;
+};
+const summaryWarnings = (summary: Record<string, unknown> | null) => Array.isArray(summary?.warnings)
+  ? summary.warnings
+    .filter((value): value is string => typeof value === "string")
+    .map(formatSyncWarning)
+  : [];
 const winnerSideLabel = (value: WinnerValue | Side | null) => value === "home" ? "ホーム" : value === "away" ? "ビジター" : value === "draw" ? "引き分け" : "未設定";
 const winnerResultLabel = (game: AdminGame) => game.winner === "home" ? `${game.home_team.name} 勝利` : game.winner === "away" ? `${game.away_team.name} 勝利` : game.winner === "draw" ? "引き分け" : "未設定";
 const scoreLabel = (game: AdminGame) => game.score_home === null || game.score_away === null ? "未入力" : `${game.score_home} - ${game.score_away}`;

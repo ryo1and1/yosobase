@@ -550,7 +550,8 @@ function parseYearOverviewResultsHtmlSafe(
   const seen = new Set<string>();
   const pageText = normalizeText(load(html).root().text());
   const sectionRegex = /(\d{1,2})\u6708(\d{1,2})\u65e5\(([^)]+)\)\s*([\s\S]*?)(?=\d{1,2}\u6708\d{1,2}\u65e5\([^)]+\)|$)/g;
-  const scoreRegex = /(\d+)\s*-\s*(\d+)\s+\((.+?)\)\s+\u8A66\u5408\u7D42\u4E86/g;
+  const legacyScoreRegex = /(\d+)\s*-\s*(\d+)\s+\((.+?)\)\s+\u8A66\u5408\u7D42\u4E86/g;
+  const compactScoreRegex = /(\d+)\s*-\s*(\d+)\s+(.+?)(?=(?:\s+\d+\s*-\s*\d+\s+)|$)/g;
 
   for (const section of pageText.matchAll(sectionRegex)) {
     const currentDate = toDateKey(year, Number.parseInt(section[1], 10), Number.parseInt(section[2], 10));
@@ -559,7 +560,12 @@ function parseYearOverviewResultsHtmlSafe(
     }
 
     const sectionBody = section[4] ?? "";
-    for (const scoreMatch of sectionBody.matchAll(scoreRegex)) {
+    const legacyMatches = [...sectionBody.matchAll(legacyScoreRegex)];
+    const scoreMatches = legacyMatches.length > 0
+      ? legacyMatches
+      : [...sectionBody.matchAll(compactScoreRegex)];
+
+    for (const scoreMatch of scoreMatches) {
       const scoreHome = Number.parseInt(scoreMatch[1], 10);
       const scoreAway = Number.parseInt(scoreMatch[2], 10);
       const stadium = normalizeStadiumName(scoreMatch[3]);
