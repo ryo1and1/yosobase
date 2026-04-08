@@ -3,7 +3,6 @@ import Link from "next/link";
 import "@/app/globals.css";
 import { HeaderSessionPanel } from "@/components/header-session-panel";
 import { SiteFooter } from "@/components/site-footer";
-import { getAdSenseClientId, isAdSenseProductionEnabled } from "@/lib/ads";
 import { getAppBaseUrl } from "@/lib/app-url";
 
 export const metadata: Metadata = {
@@ -26,19 +25,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const adSenseClientId = isAdSenseProductionEnabled() ? getAdSenseClientId() : null;
-
   return (
     <html lang="ja">
-      <head>
-        {adSenseClientId ? (
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adSenseClientId}`}
-            crossOrigin="anonymous"
-          />
-        ) : null}
-      </head>
+      <head />
       <body suppressHydrationWarning>
         <div className="orb orb-a" aria-hidden />
         <div className="orb orb-b" aria-hidden />

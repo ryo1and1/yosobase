@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Lexend } from "next/font/google";
+import { AdSenseScript } from "@/components/ads/adsense-script";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { ShareXButton } from "@/components/share-x-button";
 import { getAdSenseUnitConfig } from "@/lib/ads";
@@ -48,6 +49,7 @@ export default async function RankingsPage({
     limit: 100,
     viewerUserId
   });
+  const shouldShowRankingAd = Boolean(rankingAd) && ranking.items.length > 0;
 
   const meText = ranking.me
     ? `YosoBaseランキング ${ranking.me.rank}位・${ranking.me.points}pt・的中率 ${Math.round(ranking.me.hit_rate * 100)}% #YosoBase`
@@ -58,6 +60,7 @@ export default async function RankingsPage({
 
   return (
     <div className={`${lexend.className} leaderboard-page`}>
+      {shouldShowRankingAd ? <AdSenseScript /> : null}
       <section className="leaderboard-head">
         <div>
           <h1>ランキング</h1>
@@ -181,7 +184,7 @@ export default async function RankingsPage({
       <section className="leaderboard-footer">
         <p>表示件数: {showingText}</p>
       </section>
-      {rankingAd ? <AdSenseUnit client={rankingAd.client} slot={rankingAd.slot} className="leaderboard-ad-slot" /> : null}
+      {shouldShowRankingAd && rankingAd ? <AdSenseUnit client={rankingAd.client} slot={rankingAd.slot} className="leaderboard-ad-slot" /> : null}
     </div>
   );
 }

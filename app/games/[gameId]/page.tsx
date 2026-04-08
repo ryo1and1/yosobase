@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Lexend } from "next/font/google";
+import { AdSenseScript } from "@/components/ads/adsense-script";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { PredictionPanel } from "@/components/prediction-panel";
 import { getAdSenseUnitConfig } from "@/lib/ads";
@@ -62,6 +63,7 @@ export default async function GameDetailPage({
 
   return (
     <div className={`${lexend.className} game-detail-page`}>
+      {gameAd ? <AdSenseScript /> : null}
       <section className="game-detail-head">
         <div>
           <p className="game-detail-kicker">試合詳細</p>

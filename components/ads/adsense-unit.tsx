@@ -31,13 +31,44 @@ export function AdSenseUnit({
       return;
     }
 
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-      element.dataset.initialized = "true";
-    } catch {
-      // Ignore ad fill/init errors so content rendering is never blocked.
+    let cancelled = false;
+    let retryTimer: number | null = null;
+
+    const initializeAd = () => {
+      if (cancelled || element.dataset.initialized === "true") {
+        return true;
+      }
+
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        element.dataset.initialized = "true";
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (initializeAd()) {
+      return;
     }
-  }, []);
+
+    let attempts = 0;
+    retryTimer = window.setInterval(() => {
+      attempts += 1;
+      if (initializeAd() || attempts >= 20) {
+        if (retryTimer !== null) {
+          window.clearInterval(retryTimer);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== null) {
+        window.clearInterval(retryTimer);
+      }
+    };
+  }, [client, slot]);
 
   return (
     <aside className={`ad-shell ${className}`.trim()} aria-label={label}>
