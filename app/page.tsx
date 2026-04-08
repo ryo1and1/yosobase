@@ -1,5 +1,6 @@
 import { Lexend } from "next/font/google";
 import Link from "next/link";
+import { AdSenseScript } from "@/components/ads/adsense-script";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { HomePersonalizedSections } from "@/components/home-personalized-sections";
 import { getAdSenseUnitConfig } from "@/lib/ads";
@@ -32,6 +33,7 @@ export default async function HomePage({
   const isAuthenticated = Boolean(viewerUserId);
   const games = (await fetchGamesByDate(date, null)) as GameListItem[];
   const topAd = getAdSenseUnitConfig("top");
+  const shouldShowTopAd = Boolean(topAd) && games.length > 0;
 
   const prevDate = addDays(date, -1);
   const nextDate = addDays(date, 1);
@@ -70,7 +72,8 @@ export default async function HomePage({
         isAuthenticated={isAuthenticated}
       />
 
-      {topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
+      {shouldShowTopAd ? <AdSenseScript /> : null}
+      {shouldShowTopAd && topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
 
       <section className="home-banner">
         <div>
