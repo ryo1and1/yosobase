@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Lexend } from "next/font/google";
-import { AdSenseScript } from "@/components/ads/adsense-script";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { ShareXButton } from "@/components/share-x-button";
 import { getAdSenseUnitConfig } from "@/lib/ads";
@@ -60,7 +59,6 @@ export default async function RankingsPage({
 
   return (
     <div className={`${lexend.className} leaderboard-page`}>
-      {shouldShowRankingAd ? <AdSenseScript /> : null}
       <section className="leaderboard-head">
         <div>
           <h1>ランキング</h1>
