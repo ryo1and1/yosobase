@@ -1,6 +1,5 @@
 import { Lexend } from "next/font/google";
 import Link from "next/link";
-import { AdSenseScript } from "@/components/ads/adsense-script";
 import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { HomePersonalizedSections } from "@/components/home-personalized-sections";
 import { getAdSenseUnitConfig } from "@/lib/ads";
@@ -72,7 +71,6 @@ export default async function HomePage({
         isAuthenticated={isAuthenticated}
       />
 
-      {shouldShowTopAd ? <AdSenseScript /> : null}
       {shouldShowTopAd && topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
 
       <section className="home-banner">

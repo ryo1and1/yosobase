@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "@/app/globals.css";
+import { AdSenseScript } from "@/components/ads/adsense-script";
 import { HeaderSessionPanel } from "@/components/header-session-panel";
 import { SiteFooter } from "@/components/site-footer";
 import { getAppBaseUrl } from "@/lib/app-url";
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ja">
       <head />
       <body suppressHydrationWarning>
+        <AdSenseScript />
         <div className="orb orb-a" aria-hidden />
         <div className="orb orb-b" aria-hidden />
         <header className="site-header">
