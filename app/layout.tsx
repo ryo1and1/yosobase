@@ -42,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
               <nav className="header-nav">
                 <Link href="/">トップ</Link>
+                <Link href="/guide">予想ガイド</Link>
                 <Link href="/rankings">ランキング</Link>
                 <Link href="/me">成績</Link>
                 <Link href="/about">ルール</Link>

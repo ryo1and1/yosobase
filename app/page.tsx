@@ -71,6 +71,20 @@ export default async function HomePage({
         isAuthenticated={isAuthenticated}
       />
 
+      <section className="home-guide-band">
+        <div>
+          <p className="home-guide-kicker">NPB予想の基本</p>
+          <h2>結果だけでなく、予想の根拠を楽しむ</h2>
+          <p>
+            先発投手、打線、救援陣、球場、日程を順に確認すると、勝敗だけでは見えない試合のポイントが分かります。
+            YosoBase独自のチェック手順を、初めて予想する方向けにまとめました。
+          </p>
+        </div>
+        <Link href="/guide" className="home-btn home-btn-outline">
+          NPB予想ガイドを読む
+        </Link>
+      </section>
+
       {shouldShowTopAd && topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
 
       <section className="home-banner">
