@@ -11,6 +11,7 @@ export function SiteFooter() {
             <span>YosoBase</span>
           </Link>
           <nav className="site-footer-nav">
+            <Link href="/guide">予想ガイド</Link>
             <Link href="/privacy">プライバシーポリシー</Link>
             <Link href="/terms">利用規約</Link>
             <Link href="/about">ルール</Link>

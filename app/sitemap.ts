@@ -5,6 +5,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const base = getAppBaseUrl();
   return [
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
+    { url: `${base}/guide`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/rankings`, changeFrequency: "daily", priority: 0.8 },
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/terms`, changeFrequency: "monthly", priority: 0.3 },
