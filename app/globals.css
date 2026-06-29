@@ -3388,6 +3388,36 @@ select.admin-input {
   margin-top: 1.25rem;
 }
 
+.guide-link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.guide-link-card {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+  color: inherit;
+  text-decoration: none;
+}
+
+.guide-link-card strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.guide-link-card span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.75;
+}
+
 @media (max-width: 700px) {
   .home-guide-band {
     align-items: flex-start;
@@ -3408,6 +3438,10 @@ select.admin-input {
 
   .guide-note {
     padding: 1.1rem;
+  }
+
+  .guide-link-grid {
+    grid-template-columns: 1fr;
   }
 }
 
