@@ -38,6 +38,24 @@ const factors = [
   }
 ];
 
+const relatedGuides = [
+  {
+    href: "/guide/starting-pitchers",
+    title: "先発投手を見るときの基本",
+    description: "防御率だけに寄せず、投球回、四球、登板間隔、相手打線との相性を整理します。"
+  },
+  {
+    href: "/guide/bullpen",
+    title: "救援陣と継投を読む",
+    description: "接戦で勝敗が動きやすい終盤に向けて、連投状況と役割分担を確認します。"
+  },
+  {
+    href: "/guide/review",
+    title: "予想結果の振り返り方",
+    description: "当たり外れだけで終わらせず、次の予想に残す材料を分けて記録します。"
+  }
+];
+
 export default function GuidePage() {
   return (
     <article className="guide-page">
@@ -87,6 +105,18 @@ export default function GuidePage() {
             次の予想に生かせます。試合後は、先発の出来、得点のきっかけ、継投の分岐点を振り返り、事前の想定と違った点を一つ記録すると、
             自分が重視しすぎる材料や見落としやすい材料が分かります。
           </p>
+        </section>
+
+        <section className="guide-section">
+          <h2>詳しく読む</h2>
+          <div className="guide-link-grid">
+            {relatedGuides.map((guide) => (
+              <Link key={guide.href} href={guide.href} className="guide-link-card">
+                <strong>{guide.title}</strong>
+                <span>{guide.description}</span>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <section className="guide-note">

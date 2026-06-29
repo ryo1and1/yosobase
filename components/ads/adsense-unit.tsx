@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Script from "next/script";
 
 declare global {
   interface Window {
@@ -71,19 +72,28 @@ export function AdSenseUnit({
   }, [client, slot]);
 
   return (
-    <aside className={`ad-shell ${className}`.trim()} aria-label={label}>
-      <p className="ad-shell-label">{label}</p>
-      <div className="ad-shell-frame" style={{ minHeight }}>
-        <ins
-          ref={adRef}
-          className="adsbygoogle"
-          style={{ display: "block" }}
-          data-ad-client={client}
-          data-ad-slot={slot}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
-      </div>
-    </aside>
+    <>
+      <Script
+        id="adsense-script"
+        async
+        strategy="afterInteractive"
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`}
+        crossOrigin="anonymous"
+      />
+      <aside className={`ad-shell ${className}`.trim()} aria-label={label}>
+        <p className="ad-shell-label">{label}</p>
+        <div className="ad-shell-frame" style={{ minHeight }}>
+          <ins
+            ref={adRef}
+            className="adsbygoogle"
+            style={{ display: "block" }}
+            data-ad-client={client}
+            data-ad-slot={slot}
+            data-ad-format="auto"
+            data-full-width-responsive="true"
+          />
+        </div>
+      </aside>
+    </>
   );
 }

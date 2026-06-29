@@ -1,9 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ensurePublicUserProfile } from "@/lib/public-user-profile";
 import { publicUserCodeFromId } from "@/lib/public-user-code";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 type TeamRelation = { name: string }[] | { name: string } | null;
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { INITIAL_POINT_BALANCE } from "@/lib/game-rules";
 import { FavoriteTeamForm } from "@/components/favorite-team-form";
@@ -8,6 +9,13 @@ import { createServiceClient } from "@/lib/supabase";
 import { currentJstYear, formatJstDateTime } from "@/lib/time";
 import type { Team } from "@/lib/types";
 import { getRequestViewerUserId } from "@/lib/viewer-server";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 type TeamRelation = { name: string }[] | { name: string } | null;
 
