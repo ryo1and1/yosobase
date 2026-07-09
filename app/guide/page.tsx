@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EditorialAd } from "@/components/ads/editorial-ad";
 
 export const metadata: Metadata = {
   title: "NPB予想ガイド",
@@ -53,6 +54,21 @@ const relatedGuides = [
     href: "/guide/review",
     title: "予想結果の振り返り方",
     description: "当たり外れだけで終わらせず、次の予想に残す材料を分けて記録します。"
+  },
+  {
+    href: "/guide/batting-lineup",
+    title: "打線とスタメンの見方",
+    description: "打率だけでなく、出塁、長打、左右相性、当日の打順から得点の形を考えます。"
+  },
+  {
+    href: "/guide/ballpark-weather",
+    title: "球場と天候を予想に入れる",
+    description: "球場の広さ、風、屋外球場の天候を、投手や守備力と組み合わせて整理します。"
+  },
+  {
+    href: "/guide/points-strategy",
+    title: "ポイント配分の考え方",
+    description: "強い根拠がある試合と迷う試合を分け、無理に全ポイントを寄せない判断を扱います。"
   }
 ];
 
@@ -118,6 +134,8 @@ export default function GuidePage() {
             ))}
           </div>
         </section>
+
+        <EditorialAd className="guide-ad-slot" />
 
         <section className="guide-note">
           <h2>YosoBaseでの楽しみ方</h2>

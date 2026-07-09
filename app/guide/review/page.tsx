@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EditorialAd } from "@/components/ads/editorial-ad";
 
 export const metadata: Metadata = {
   title: "予想結果の振り返り方",
@@ -75,6 +76,8 @@ export default function ReviewGuidePage() {
             自分の判断の偏りに気づきやすくなります。
           </p>
         </section>
+
+        <EditorialAd className="guide-ad-slot" />
 
         <section className="guide-note">
           <h2>YosoBaseで使うときの考え方</h2>

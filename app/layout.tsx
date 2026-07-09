@@ -11,10 +11,10 @@ export const metadata: Metadata = {
     default: "YosoBase | NPB予想ゲーム",
     template: "%s | YosoBase"
   },
-  description: "YosoBaseはNPBの試合を予想してポイントを競うMVP向け運用アプリです。",
+  description: "YosoBaseはNPBの試合を予想し、ポイントとランキングで楽しむ無料の予想ゲームです。",
   openGraph: {
     title: "YosoBase | NPB予想ゲーム",
-    description: "毎日の試合を予想し、結果入力と精算でランキングを更新できます。",
+    description: "NPBの試合を予想し、結果に応じたポイントとランキングで楽しめます。",
     type: "website"
   },
   twitter: {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EditorialAd } from "@/components/ads/editorial-ad";
 
 export const metadata: Metadata = {
   title: "先発投手を見るときの基本",
@@ -74,6 +75,8 @@ export default function StartingPitchersGuidePage() {
             当日のスタメンが出るまで結論を固定しないことも大切です。
           </p>
         </section>
+
+        <EditorialAd className="guide-ad-slot" />
 
         <section className="guide-note">
           <h2>YosoBaseで使うときの考え方</h2>

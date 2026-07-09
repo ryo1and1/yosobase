@@ -1,8 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Lexend } from "next/font/google";
-import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { ShareXButton } from "@/components/share-x-button";
-import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchRanking } from "@/lib/data";
 import { currentJstYear } from "@/lib/time";
 import { parseRankingPeriod } from "@/lib/validation";
@@ -12,6 +11,13 @@ const lexend = Lexend({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"]
 });
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true
+  }
+};
 
 function teamMark(name: string): string {
   const compact = name.replace(/\s+/g, "");
@@ -39,7 +45,6 @@ export default async function RankingsPage({
   const period = parseRankingPeriod(params.period ?? null);
   const viewerUserId = await getRequestViewerUserId();
   const seasonYear = params.seasonYear ? Number(params.seasonYear) : currentJstYear();
-  const rankingAd = getAdSenseUnitConfig("ranking");
 
   const ranking = await fetchRanking(period, {
     date: params.date,
@@ -48,8 +53,6 @@ export default async function RankingsPage({
     limit: 100,
     viewerUserId
   });
-  const shouldShowRankingAd = Boolean(rankingAd) && ranking.items.length > 0;
-
   const meText = ranking.me
     ? `YosoBaseランキング ${ranking.me.rank}位・${ranking.me.points}pt・的中率 ${Math.round(ranking.me.hit_rate * 100)}% #YosoBase`
     : "YosoBaseでNPB予想に参加中 #YosoBase";
@@ -182,7 +185,6 @@ export default async function RankingsPage({
       <section className="leaderboard-footer">
         <p>表示件数: {showingText}</p>
       </section>
-      {shouldShowRankingAd && rankingAd ? <AdSenseUnit client={rankingAd.client} slot={rankingAd.slot} className="leaderboard-ad-slot" /> : null}
     </div>
   );
 }
