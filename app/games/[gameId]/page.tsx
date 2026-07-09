@@ -2,9 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Lexend } from "next/font/google";
-import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { PredictionPanel } from "@/components/prediction-panel";
-import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchGameDetail, fetchGameHeadline } from "@/lib/data";
 import { formatJstDateTime, minutesUntil } from "@/lib/time";
 import { statusLabel } from "@/lib/ui";
@@ -27,12 +25,16 @@ export async function generateMetadata({
   const { gameId } = await params;
   const game = await fetchGameHeadline(gameId);
   if (!game) {
-    return { title: "試合が見つかりません" };
+    return { title: "試合が見つかりません", robots: { index: false, follow: true } };
   }
 
   return {
     title: `${game.homeTeamName} 対 ${game.awayTeamName}`,
-    description: `${game.homeTeamName} 対 ${game.awayTeamName} の予想詳細ページ`
+    description: `${game.homeTeamName} 対 ${game.awayTeamName} の予想詳細ページ`,
+    robots: {
+      index: false,
+      follow: true
+    }
   };
 }
 
@@ -58,7 +60,6 @@ export default async function GameDetailPage({
   const isWinningPrediction = (detail.settlement?.points_delta ?? 0) > 0;
   const isCanceledRefunded = game.status === "canceled" && detail.settlement !== null;
   const loginHref = `/login?returnTo=${encodeURIComponent(`/games/${game.id}`)}&focus=prediction`;
-  const gameAd = getAdSenseUnitConfig("game");
 
   return (
     <div className={`${lexend.className} game-detail-page`}>
@@ -173,8 +174,6 @@ export default async function GameDetailPage({
           </div>
         </section>
       )}
-
-      {gameAd ? <AdSenseUnit client={gameAd.client} slot={gameAd.slot} className="game-detail-ad-slot" /> : null}
 
       <section className="game-detail-links">
         <Link href="/" className="home-btn home-btn-outline">

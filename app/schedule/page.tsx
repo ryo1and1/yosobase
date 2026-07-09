@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Lexend } from "next/font/google";
 import { SchedulePersonalizedList } from "@/components/schedule-personalized-list";
@@ -10,6 +11,13 @@ const lexend = Lexend({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"]
 });
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true
+  }
+};
 
 function addDays(dateText: string, days: number): string {
   const base = new Date(`${dateText}T00:00:00+09:00`);

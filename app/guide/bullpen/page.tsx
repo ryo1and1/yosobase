@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EditorialAd } from "@/components/ads/editorial-ad";
 
 export const metadata: Metadata = {
   title: "救援陣と継投を読む",
@@ -75,6 +76,8 @@ export default function BullpenGuidePage() {
             反対に主力救援が使いにくい状況なら、終盤に追いつかれる可能性も残します。
           </p>
         </section>
+
+        <EditorialAd className="guide-ad-slot" />
 
         <section className="guide-note">
           <h2>YosoBaseで使うときの考え方</h2>

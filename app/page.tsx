@@ -1,8 +1,6 @@
 import { Lexend } from "next/font/google";
 import Link from "next/link";
-import { AdSenseUnit } from "@/components/ads/adsense-unit";
 import { HomePersonalizedSections } from "@/components/home-personalized-sections";
-import { getAdSenseUnitConfig } from "@/lib/ads";
 import { fetchGamesByDate } from "@/lib/data";
 import { formatJstDate, todayJst } from "@/lib/time";
 import type { GameListItem } from "@/lib/types";
@@ -31,8 +29,6 @@ export default async function HomePage({
   const viewerUserId = await getRequestViewerUserId();
   const isAuthenticated = Boolean(viewerUserId);
   const games = (await fetchGamesByDate(date, null)) as GameListItem[];
-  const topAd = getAdSenseUnitConfig("top");
-  const shouldShowTopAd = Boolean(topAd) && games.length > 0;
 
   const prevDate = addDays(date, -1);
   const nextDate = addDays(date, 1);
@@ -84,8 +80,6 @@ export default async function HomePage({
           NPB予想ガイドを読む
         </Link>
       </section>
-
-      {shouldShowTopAd && topAd ? <AdSenseUnit client={topAd.client} slot={topAd.slot} className="home-ad-slot" /> : null}
 
       <section className="home-banner">
         <div>
