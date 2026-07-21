@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "ポイント配分の考え方",
-  description:
-    "YosoBaseでNPB予想をするときに、根拠の強い試合と迷う試合を分けてポイントを配分する考え方を解説します。"
-};
+const article = getGuideArticle("points-strategy");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "根拠が揃っている試合と迷う試合を分ける",
@@ -25,7 +24,7 @@ export default function PointsStrategyGuidePage() {
           YosoBaseでは、勝敗を選ぶだけでなくポイントをどう配分するかも予想の一部です。
           強く見えるカードに寄せる判断と、迷うカードで抑える判断を分けると、結果に振り回されにくくなります。
         </p>
-        <p className="guide-updated">最終更新: 2026年7月10日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="points-checklist-title">
@@ -76,6 +75,48 @@ export default function PointsStrategyGuidePage() {
             少しずつ配分の癖を把握すると、次の予想で判断しやすくなります。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>確信度を配分へ置き換える例</h2>
+          <p>
+            ポイント量は「当たる確率」を厳密に示す数字ではなく、自分の根拠の強さを比較する目印として使います。
+            毎回同じ基準で3段階に分けると、直前の感情だけで配分を変えることを減らせます。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>1試合あたりの配分を考える架空の例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">確信度</th>
+                  <th scope="col">材料の状態</th>
+                  <th scope="col">配分の考え方</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">高い</th>
+                  <td>先発、打線、救援が同じ方向</td>
+                  <td>上限内で相対的に厚くする</td>
+                </tr>
+                <tr>
+                  <th scope="row">中間</th>
+                  <td>主な根拠はあるが反対材料もある</td>
+                  <td>一方向へ寄せすぎず余力を残す</td>
+                </tr>
+                <tr>
+                  <th scope="row">低い</th>
+                  <td>スタメンや天候など未確定が多い</td>
+                  <td>見送るか、配分を小さくする</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">
+            配分は説明用の考え方です。YosoBaseのポイントは現金や賞品へ交換できず、金銭を賭けるサービスではありません。
+          </p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

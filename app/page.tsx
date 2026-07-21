@@ -1,10 +1,19 @@
+import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import Link from "next/link";
 import { HomePersonalizedSections } from "@/components/home-personalized-sections";
+import { GUIDE_ARTICLES } from "@/lib/guides";
 import { fetchGamesByDate } from "@/lib/data";
 import { formatJstDate, todayJst } from "@/lib/time";
 import type { GameListItem } from "@/lib/types";
 import { getRequestViewerUserId } from "@/lib/viewer-server";
+
+export const metadata: Metadata = {
+  title: { absolute: "YosoBase | NPB予想ゲーム" },
+  description:
+    "NPBの試合を予想し、結果に応じたサイト内ポイントとランキングで楽しむ無料ゲーム。先発、打線、救援陣、球場の見方も解説します。",
+  alternates: { canonical: "/" }
+};
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -67,18 +76,41 @@ export default async function HomePage({
         isAuthenticated={isAuthenticated}
       />
 
-      <section className="home-guide-band">
-        <div>
-          <p className="home-guide-kicker">NPB予想の基本</p>
-          <h2>結果だけでなく、予想の根拠を楽しむ</h2>
-          <p>
-            先発投手、打線、救援陣、球場、日程を順に確認すると、勝敗だけでは見えない試合のポイントが分かります。
-            YosoBase独自のチェック手順を、初めて予想する方向けにまとめました。
-          </p>
+      <section className="home-editorial-section" aria-labelledby="home-guides-title">
+        <header className="home-editorial-head">
+          <div>
+            <p className="home-guide-kicker">NPB予想の基本</p>
+            <h2 id="home-guides-title">結果だけでなく、予想の根拠を楽しむ</h2>
+            <p>
+              先発投手、打線、救援陣、球場、日程を順に確認すると、勝敗だけでは見えない試合のポイントが分かります。
+              YosoBaseでは、公式記録や天候などの一次情報を確認し、分かっている事実と不確実な材料を分ける手順をまとめています。
+            </p>
+          </div>
+          <Link href="/guide" className="home-btn home-btn-outline">
+            ガイド一覧を読む
+          </Link>
+        </header>
+
+        <div className="home-editorial-grid">
+          {GUIDE_ARTICLES.map((guide) => (
+            <Link key={guide.href} href={guide.href} className="home-editorial-link">
+              <strong>{guide.title}</strong>
+              <span>{guide.description}</span>
+              <small>更新 {guide.updatedAt.replaceAll("-", ".")}</small>
+            </Link>
+          ))}
         </div>
-        <Link href="/guide" className="home-btn home-btn-outline">
-          NPB予想ガイドを読む
-        </Link>
+
+        <div className="home-editorial-policy">
+          <div>
+            <h3>情報は公式発表を優先します</h3>
+            <p>
+              試合日程と成績はNPB公式情報、天候は気象庁などを確認先として明記しています。
+              予想結果を保証せず、記事の公開日・更新日・編集者・出典を表示します。
+            </p>
+          </div>
+          <Link href="/editorial-policy">運営・編集方針を見る</Link>
+        </div>
       </section>
 
       <section className="home-banner">

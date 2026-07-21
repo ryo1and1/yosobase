@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "球場と天候を予想に入れる",
-  description:
-    "NPBの試合予想で球場の広さ、屋外球場の天候、風、守備への影響をどう扱うかを解説します。"
-};
+const article = getGuideArticle("ballpark-weather");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "球場ごとの広さやフェンスの特徴を確認する",
@@ -25,7 +24,7 @@ export default function BallparkWeatherGuidePage() {
           同じ対戦カードでも、球場や天候によって試合の性格は変わります。長打が出やすい条件か、
           守備に負担がかかる条件かを確認すると、投手と打線の見立てを補正できます。
         </p>
-        <p className="guide-updated">最終更新: 2026年7月10日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="ballpark-checklist-title">
@@ -74,6 +73,48 @@ export default function BallparkWeatherGuidePage() {
             最後の補助材料として使うのが基本です。条件が読みづらい日は、予想の確信度を上げすぎない判断も必要です。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>天候情報を判断へつなぐ順序</h2>
+          <p>
+            予報を見たら、その数値をそのまま勝敗へ結びつけるのではなく、試合への影響と不確実性を分けます。
+            とくに屋外球場では予報が変わるため、予想を確定する時刻も決めておくと過度な反応を減らせます。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>球場条件を整理する手順</caption>
+              <thead>
+                <tr>
+                  <th scope="col">情報</th>
+                  <th scope="col">起こり得る影響</th>
+                  <th scope="col">一緒に見る材料</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">強い風</th>
+                  <td>外野フライや長打の距離が変わる</td>
+                  <td>風向き、投手の打球傾向、外野守備</td>
+                </tr>
+                <tr>
+                  <th scope="row">雨</th>
+                  <td>制球、守備、中断の影響が出る</td>
+                  <td>降水の時間帯、グラウンド、継投余力</td>
+                </tr>
+                <tr>
+                  <th scope="row">高温</th>
+                  <td>長い試合で負荷が増える</td>
+                  <td>開始時刻、先発の投球回、選手起用</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">
+            天候は変化します。気象庁と主催球団の最新案内を確認し、中止・開始時刻変更の情報を優先してください。
+          </p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

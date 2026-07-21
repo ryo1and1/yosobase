@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { getAppBaseUrl } from "@/lib/app-url";
+import { GUIDE_ARTICLES, GUIDE_AUTHOR_NAME } from "@/lib/guides";
 
 export const metadata: Metadata = {
   title: "NPB予想ガイド",
   description:
-    "先発投手、打線、救援陣、球場、日程からNPBの試合を予想するための基本的な見方を、YosoBase独自の手順で解説します。"
+    "先発投手、打線、救援陣、球場、日程からNPBの試合を予想するための基本的な見方を、YosoBase独自の手順で解説します。",
+  alternates: { canonical: "/guide" },
+  authors: [{ name: GUIDE_AUTHOR_NAME, url: "/editorial-policy" }]
 };
 
 const checklist = [
@@ -39,42 +43,37 @@ const factors = [
   }
 ];
 
-const relatedGuides = [
-  {
-    href: "/guide/starting-pitchers",
-    title: "先発投手を見るときの基本",
-    description: "防御率だけに寄せず、投球回、四球、登板間隔、相手打線との相性を整理します。"
-  },
-  {
-    href: "/guide/bullpen",
-    title: "救援陣と継投を読む",
-    description: "接戦で勝敗が動きやすい終盤に向けて、連投状況と役割分担を確認します。"
-  },
-  {
-    href: "/guide/review",
-    title: "予想結果の振り返り方",
-    description: "当たり外れだけで終わらせず、次の予想に残す材料を分けて記録します。"
-  },
-  {
-    href: "/guide/batting-lineup",
-    title: "打線とスタメンの見方",
-    description: "打率だけでなく、出塁、長打、左右相性、当日の打順から得点の形を考えます。"
-  },
-  {
-    href: "/guide/ballpark-weather",
-    title: "球場と天候を予想に入れる",
-    description: "球場の広さ、風、屋外球場の天候を、投手や守備力と組み合わせて整理します。"
-  },
-  {
-    href: "/guide/points-strategy",
-    title: "ポイント配分の考え方",
-    description: "強い根拠がある試合と迷う試合を分け、無理に全ポイントを寄せない判断を扱います。"
-  }
-];
-
 export default function GuidePage() {
+  const base = getAppBaseUrl();
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "NPB予想ガイド",
+    description: metadata.description,
+    url: `${base}/guide`,
+    inLanguage: "ja-JP",
+    author: {
+      "@type": "Organization",
+      name: GUIDE_AUTHOR_NAME,
+      url: `${base}/editorial-policy`
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: GUIDE_ARTICLES.map((guide, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: guide.title,
+        url: `${base}${guide.href}`
+      }))
+    }
+  };
+
   return (
     <article className="guide-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+      />
       <header className="guide-hero">
         <p className="guide-kicker">YosoBase Editorial Guide</p>
         <h1>NPBの試合予想で確認したい5つの材料</h1>
@@ -82,7 +81,12 @@ export default function GuidePage() {
           勝敗予想に絶対の方法はありません。YosoBaseでは、公開されている試合情報を一つずつ確認し、
           根拠の強さと不確実性を分けて考えることを基本にしています。このページでは、予想前に確認したい材料と判断の順序を解説します。
         </p>
-        <p className="guide-updated">最終更新: 2026年6月18日</p>
+        <div className="guide-article-meta">
+          <span>
+            編集: <Link href="/editorial-policy">{GUIDE_AUTHOR_NAME}</Link>
+          </span>
+          <span>最終更新: 2026年7月21日</span>
+        </div>
       </header>
 
       <section className="guide-summary" aria-labelledby="guide-checklist-title">
@@ -126,13 +130,23 @@ export default function GuidePage() {
         <section className="guide-section">
           <h2>詳しく読む</h2>
           <div className="guide-link-grid">
-            {relatedGuides.map((guide) => (
+            {GUIDE_ARTICLES.map((guide) => (
               <Link key={guide.href} href={guide.href} className="guide-link-card">
                 <strong>{guide.title}</strong>
                 <span>{guide.description}</span>
               </Link>
             ))}
           </div>
+        </section>
+
+        <section className="guide-sources" aria-labelledby="guide-editorial-title">
+          <p className="guide-section-label">Editorial policy</p>
+          <h2 id="guide-editorial-title">情報の扱い方</h2>
+          <p>
+            YosoBaseのガイドは、NPB公式記録や気象庁などの一次情報を確認するための手順をまとめたものです。
+            特定の試合結果を保証せず、数字の更新時刻と不確実な材料を区別して記載します。
+          </p>
+          <Link href="/editorial-policy">運営・編集方針と訂正方法を確認する</Link>
         </section>
 
         <EditorialAd className="guide-ad-slot" />

@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "打線とスタメンの見方",
-  description:
-    "NPBの試合予想で打線、スタメン、左右相性、得点の作り方をどう確認するかを解説します。"
-};
+const article = getGuideArticle("batting-lineup");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "上位打線の出塁と中軸の長打がつながっているかを見る",
@@ -25,7 +24,7 @@ export default function BattingLineupGuidePage() {
           打線を見るときは、チーム打率や本塁打数だけで判断しないことが大切です。どの打者が出塁し、
           どの打者が返す形になっているかを確認すると、得点の再現性を考えやすくなります。
         </p>
-        <p className="guide-updated">最終更新: 2026年7月10日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="batting-checklist-title">
@@ -75,6 +74,46 @@ export default function BattingLineupGuidePage() {
             終盤の得点可能性を考える材料になります。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>打線の評価を分解する例</h2>
+          <p>
+            「打線が好調」という一言でまとめず、得点の入口、走者を返す方法、終盤の選択肢に分けます。
+            同じ得点数でも、複数の形を持つ打線と一つの長打に依存する打線では、相手投手が変わったときの見通しが異なります。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>打線の得点経路を整理する架空の例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">観点</th>
+                  <th scope="col">確認する内容</th>
+                  <th scope="col">見落としやすい点</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">出塁</th>
+                  <td>安打と四球の両方で走者を出せるか</td>
+                  <td>打率だけでは四球が見えない</td>
+                </tr>
+                <tr>
+                  <th scope="row">長打</th>
+                  <td>中軸以外にも長打の選択肢があるか</td>
+                  <td>一試合の本塁打に引っ張られやすい</td>
+                </tr>
+                <tr>
+                  <th scope="row">終盤</th>
+                  <td>代打、代走、守備交代を残せるか</td>
+                  <td>スタメンだけで試合全体を判断しやすい</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">表は確認手順を説明する架空の例で、特定チームの評価ではありません。</p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

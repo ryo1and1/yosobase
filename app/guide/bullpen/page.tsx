@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "救援陣と継投を読む",
-  description:
-    "NPBの試合予想で救援陣の連投状況、勝ちパターン、延長戦の影響を確認し、終盤の展開を考えるためのガイドです。"
-};
+const article = getGuideArticle("bullpen");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "勝ちパターンの投手が前日までに連投していないかを見る",
@@ -25,7 +24,7 @@ export default function BullpenGuidePage() {
           NPBの接戦では、6回以降の継投で勝敗が動くことがあります。先発投手の比較だけで終わらせず、
           前日までの登板状況と勝ちパターンの使われ方を見ておくと、終盤のリスクを判断しやすくなります。
         </p>
-        <p className="guide-updated">最終更新: 2026年6月29日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="bullpen-checklist-title">
@@ -76,6 +75,50 @@ export default function BullpenGuidePage() {
             反対に主力救援が使いにくい状況なら、終盤に追いつかれる可能性も残します。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>前日までの起用を整理する例</h2>
+          <p>
+            救援陣はチーム全体の防御率だけでは状態をつかみにくいため、役割ごとに直近の負荷を整理します。
+            「登板したか」だけでなく、球数、連投、延長戦の有無を分けると、当日使える選択肢が見えます。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>救援陣の状態を整理する架空の例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">役割</th>
+                  <th scope="col">直近2日</th>
+                  <th scope="col">確認したい点</th>
+                  <th scope="col">予想への反映</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">抑え</th>
+                  <td>2日連続で登板</td>
+                  <td>球数と3連投の起用傾向</td>
+                  <td>1点差の逃げ切りを強く見すぎない</td>
+                </tr>
+                <tr>
+                  <th scope="row">セットアッパー</th>
+                  <td>前日は休養</td>
+                  <td>8回以外での起用可能性</td>
+                  <td>終盤の代替手段として残す</td>
+                </tr>
+                <tr>
+                  <th scope="row">ロング要員</th>
+                  <td>前日に複数回</td>
+                  <td>先発早期降板時の代役</td>
+                  <td>中盤の不確実性を上げる</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">役割と起用状況は説明用の架空例です。チームの運用は時期や登録選手によって変わります。</p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

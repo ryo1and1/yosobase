@@ -12,6 +12,7 @@ export function SiteFooter() {
           </Link>
           <nav className="site-footer-nav">
             <Link href="/guide">予想ガイド</Link>
+            <Link href="/editorial-policy">運営・編集方針</Link>
             <Link href="/privacy">プライバシーポリシー</Link>
             <Link href="/terms">利用規約</Link>
             <Link href="/about">ルール</Link>

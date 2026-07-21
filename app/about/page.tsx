@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Lexend } from "next/font/google";
 import { INITIAL_POINT_BALANCE } from "@/lib/game-rules";
+
+export const metadata: Metadata = {
+  title: "YosoBaseの遊び方",
+  description: "NPB予想の選択肢、サイト内ポイント、締切、精算、ランキングに関する現在のルールを案内します。",
+  alternates: { canonical: "/about" }
+};
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -37,7 +44,7 @@ export default function AboutPage() {
         <div>
           <p className="rules-kicker">ルール</p>
           <h1>YosoBase の遊び方</h1>
-          <p>MVP 時点の仕様です。予想方式、ポイント、ランキングの基本ルールを確認できます。</p>
+          <p>現在適用している予想方式、ポイント、締切、ランキングの基本ルールを確認できます。</p>
         </div>
       </section>
 

@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Lexend } from "next/font/google";
+
+export const metadata: Metadata = {
+  title: "プライバシーポリシー",
+  description: "YosoBaseにおける個人情報、Cookie、アクセス情報、広告配信に関する取扱いを案内します。",
+  alternates: { canonical: "/privacy" }
+};
 
 const lexend = Lexend({
   subsets: ["latin"],
