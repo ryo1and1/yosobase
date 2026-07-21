@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "YosoBase | NPB予想ゲーム",
     description: "NPB試合を予想してランキングを競うゲーム"
+  },
+  other: {
+    "google-adsense-account": "ca-pub-1679412386569499"
   }
 };
 

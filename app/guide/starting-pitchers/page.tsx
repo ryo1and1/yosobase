@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "先発投手を見るときの基本",
-  description:
-    "NPBの試合予想で先発投手を見るときに、防御率、投球回、四球、登板間隔、相手打線との相性をどう整理するかを解説します。"
-};
+const article = getGuideArticle("starting-pitchers");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "防御率だけでなく、投球回と失点の内訳を見る",
@@ -25,7 +24,7 @@ export default function StartingPitchersGuidePage() {
           NPBの予想では、先発投手の比較が最初の軸になります。ただし、防御率の数字だけを見ても試合の流れは読み切れません。
           どのような形で走者を出しているか、長い回を任せられるか、相手打線と噛み合うかを分けて確認します。
         </p>
-        <p className="guide-updated">最終更新: 2026年6月29日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="pitcher-checklist-title">
@@ -75,6 +74,52 @@ export default function StartingPitchersGuidePage() {
             当日のスタメンが出るまで結論を固定しないことも大切です。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>数字を並べるときの比較例</h2>
+          <p>
+            例えば防御率が近い2人を比べるときは、次のように「どこまで投げられそうか」と「崩れるきっかけ」を別の列にします。
+            防御率が低い方を自動的に選ぶのではなく、試合後半まで含めた見通しを作るための表です。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>先発投手を比較する架空の例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">確認項目</th>
+                  <th scope="col">投手A</th>
+                  <th scope="col">投手B</th>
+                  <th scope="col">判断への使い方</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">直近の投球回</th>
+                  <td>6回前後で安定</td>
+                  <td>5回前後が中心</td>
+                  <td>継投に入る時刻を想定する</td>
+                </tr>
+                <tr>
+                  <th scope="row">四球</th>
+                  <td>少なめ</td>
+                  <td>走者をためやすい</td>
+                  <td>球数増加と大量失点の入口を見る</td>
+                </tr>
+                <tr>
+                  <th scope="row">前回の球数</th>
+                  <td>通常範囲</td>
+                  <td>多め</td>
+                  <td>登板間隔と合わせて負荷を考える</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">
+            数値は説明用の架空例です。実際の判断では、公式記録の更新日時と当日の登録・スタメン情報を確認します。
+          </p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

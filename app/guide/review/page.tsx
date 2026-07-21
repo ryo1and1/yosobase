@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { EditorialAd } from "@/components/ads/editorial-ad";
+import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
+import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
-export const metadata: Metadata = {
-  title: "予想結果の振り返り方",
-  description:
-    "NPB予想の当たり外れだけで終わらせず、先発、得点過程、継投、想定外の要素を記録して次の予想に生かすためのガイドです。"
-};
+const article = getGuideArticle("review");
+
+export const metadata = createGuideMetadata(article);
 
 const checkpoints = [
   "当たった理由と外れた理由を分けて記録する",
@@ -25,7 +24,7 @@ export default function ReviewGuidePage() {
           予想は当たり外れだけを見ると、偶然の要素に引っ張られやすくなります。大切なのは、事前に見ていた材料が妥当だったか、
           試合後にどの材料を次へ残すかを整理することです。
         </p>
-        <p className="guide-updated">最終更新: 2026年6月29日</p>
+        <GuideArticleMeta article={article} />
       </header>
 
       <section className="guide-summary" aria-labelledby="review-checklist-title">
@@ -76,6 +75,46 @@ export default function ReviewGuidePage() {
             自分の判断の偏りに気づきやすくなります。
           </p>
         </section>
+
+        <section className="guide-section">
+          <h2>振り返りを3列に分ける</h2>
+          <p>
+            振り返りでは、予想前に確認できた情報、試合中に起きたこと、次回の行動を同じ行に残します。
+            こうすると、結果を知った後だけもっともらしく理由を作ることを避けやすくなります。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>試合後メモの書き方の例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">予想前の材料</th>
+                  <th scope="col">実際に起きたこと</th>
+                  <th scope="col">次回に残す行動</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>先発は6回までと想定</td>
+                  <td>四球が増えて4回で降板</td>
+                  <td>直近の球数と四球も確認する</td>
+                </tr>
+                <tr>
+                  <td>勝ちパターンは休養十分</td>
+                  <td>予定通り終盤を無失点</td>
+                  <td>有効だった材料として残す</td>
+                </tr>
+                <tr>
+                  <td>長打力を高く評価</td>
+                  <td>守備の乱れが決勝点</td>
+                  <td>的中と根拠の妥当性を分ける</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">内容は記録方法を説明する架空の例です。実際の試合では公式記録と見比べて更新します。</p>
+        </section>
+
+        <GuideSources article={article} />
 
         <EditorialAd className="guide-ad-slot" />
 

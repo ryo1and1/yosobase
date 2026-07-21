@@ -1,5 +1,12 @@
 ﻿import Link from "next/link";
 import { Lexend } from "next/font/google";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "利用規約",
+  description: "YosoBaseのサービス内容、アカウント、禁止事項、ポイント、免責事項などの利用条件を案内します。",
+  alternates: { canonical: "/terms" }
+};
 
 const lexend = Lexend({
   subsets: ["latin"],
