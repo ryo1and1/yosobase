@@ -69,7 +69,7 @@ export default function EditorialPolicyPage() {
           {" "}
           へお送りください。確認に必要なページURLと該当箇所を添えていただくと、内容を特定しやすくなります。
         </p>
-        <p className="legal-meta">制定・最終更新: 2026年7月21日</p>
+        <p className="legal-meta">制定・最終更新: 2026年8月9日</p>
       </section>
 
       <nav className="legal-links" aria-label="関連ページ">
