@@ -151,8 +151,8 @@ Sender 設定:
 
 ## Ads
 
-- Google AdSense は本番環境かつ `NEXT_PUBLIC_GOOGLE_ADSENSE_SERVING_ENABLED=true` の場合のみ読み込みます。
-- 審査中は `NEXT_PUBLIC_GOOGLE_ADSENSE_SERVING_ENABLED=false` のままにし、承認後に `true` へ変更して再デプロイします。
+- Google AdSense は本番環境かつ広告枠IDが設定されている場合に、編集記事の `/guide` だけで読み込みます。
+- `NEXT_PUBLIC_GOOGLE_ADSENSE_SERVING_ENABLED` は緊急停止用の任意設定です。未設定または `true` なら有効、`false` なら停止します。
 - `NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT` は `ca-pub-1679412386569499` を使用します。
 - 広告スロットは以下を使います。
   - `NEXT_PUBLIC_GOOGLE_ADSENSE_SLOT_TOP`
