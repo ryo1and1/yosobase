@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { EditorialAd } from "@/components/ads/editorial-ad";
 import { GuideArticleMeta, GuideSources } from "@/components/guide/guide-article-meta";
 import { createGuideMetadata, getGuideArticle } from "@/lib/guides";
 
@@ -114,8 +113,6 @@ export default function BattingLineupGuidePage() {
         </section>
 
         <GuideSources article={article} />
-
-        <EditorialAd className="guide-ad-slot" />
 
         <section className="guide-note">
           <h2>YosoBaseで使うときの考え方</h2>

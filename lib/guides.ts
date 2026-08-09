@@ -158,6 +158,10 @@ export function createGuideMetadata(article: GuideArticle): Metadata {
     title: article.title,
     description: article.description,
     alternates: { canonical },
+    robots: {
+      index: false,
+      follow: true
+    },
     authors: [{ name: GUIDE_AUTHOR_NAME, url: `${base}/editorial-policy` }],
     openGraph: {
       type: "article",

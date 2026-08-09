@@ -3448,6 +3448,29 @@ select.admin-input {
   line-height: 1.75;
 }
 
+.guide-workflow ol {
+  gap: 1rem;
+}
+
+.guide-workflow li {
+  padding-left: 0.15rem;
+}
+
+.guide-workflow li strong,
+.guide-workflow li span {
+  display: block;
+}
+
+.guide-workflow li strong {
+  color: #0f172a;
+}
+
+.guide-workflow li span {
+  margin-top: 0.2rem;
+  color: #475569;
+  line-height: 1.85;
+}
+
 .guide-body {
   display: grid;
   gap: 0;

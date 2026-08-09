@@ -43,6 +43,25 @@ const factors = [
   }
 ];
 
+const workflow = [
+  {
+    title: "前日までに土台を作る",
+    body: "対戦カード、球場、予告先発、直近の登板状況を先に確認します。この段階では結論を出さず、当日に変わり得る項目をメモしておきます。先発の変更、主力の休養、開催情報は前提を変えるため、数字より先に更新日時を確認します。"
+  },
+  {
+    title: "当日に打線と救援を重ねる",
+    body: "スタメンが発表されたら、左右の組み合わせとベンチに残る選択肢を見ます。前日の救援投手の登板数や連投もここで確認し、先発が早く降りた場合にどの投手が使えるかを想像します。先発と打線だけで作った最初の見立てを、試合後半まで含む形に更新します。"
+  },
+  {
+    title: "確定前に不確実な材料を残す",
+    body: "天候、スタメン、選手のコンディションは直前まで変わることがあります。分からない項目を都合よく補わず、『確認できた事実』『そこからの解釈』『まだ分からないこと』の3列に分けます。確信を持てないカードの配分を抑えることも、情報を正しく扱う方法です。"
+  },
+  {
+    title: "試合後に仮説を検証する",
+    body: "結果だけでなく、先発が想定した回まで投げたか、得点がどの経路で生まれたか、継投の分岐点はどこだったかを記録します。的中した理由を過大評価せず、外れた理由を一つに決めつけないために、予想前のメモと公式記録を並べて確認します。"
+  }
+];
+
 export default function GuidePage() {
   const base = getAppBaseUrl();
   const structuredData = {
@@ -52,6 +71,7 @@ export default function GuidePage() {
     description: metadata.description,
     url: `${base}/guide`,
     inLanguage: "ja-JP",
+    dateModified: "2026-08-09",
     author: {
       "@type": "Organization",
       name: GUIDE_AUTHOR_NAME,
@@ -85,7 +105,7 @@ export default function GuidePage() {
           <span>
             編集: <Link href="/editorial-policy">{GUIDE_AUTHOR_NAME}</Link>
           </span>
-          <span>最終更新: 2026年7月21日</span>
+          <span>最終更新: 2026年8月9日</span>
         </div>
       </header>
 
@@ -108,6 +128,80 @@ export default function GuidePage() {
             <p>{factor.body}</p>
           </section>
         ))}
+
+        <section className="guide-section">
+          <h2>情報の更新時刻を先に確認する</h2>
+          <p>
+            試合予想で起きやすい失敗は、古い情報を正しい前提として扱うことです。予告先発は変更されることがあり、
+            スタメンは試合直前に発表され、天候や開催可否も変わります。各情報を見た時刻を残し、最後に確認した時点で
+            何が確定しているかを整理してから予想を決めると、後から都合よく理由を作ることを防げます。
+          </p>
+        </section>
+
+        <section className="guide-section">
+          <h2>予想前のワークシート</h2>
+          <p>
+            次の表は、材料を同じ重さで並べるための簡単な記録例です。数字を点数に変換するものではありません。
+            事実と解釈を分け、反対方向の材料も一つ書くことで、最初の印象だけに引っ張られにくくなります。
+          </p>
+          <div className="guide-table-wrap">
+            <table className="guide-data-table">
+              <caption>試合前に残すメモの例</caption>
+              <thead>
+                <tr>
+                  <th scope="col">確認項目</th>
+                  <th scope="col">確認できた事実</th>
+                  <th scope="col">予想への解釈</th>
+                  <th scope="col">まだ分からないこと</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">先発</th>
+                  <td>直近の投球回と球数を確認</td>
+                  <td>終盤まで任せられる可能性を考える</td>
+                  <td>当日の球威や制球</td>
+                </tr>
+                <tr>
+                  <th scope="row">打線</th>
+                  <td>スタメンと左右の組み合わせを確認</td>
+                  <td>出塁と長打の経路を想像する</td>
+                  <td>試合中の対応力</td>
+                </tr>
+                <tr>
+                  <th scope="row">救援</th>
+                  <td>前日までの登板状況を確認</td>
+                  <td>接戦の終盤を守れるか考える</td>
+                  <td>監督の起用方針</td>
+                </tr>
+                <tr>
+                  <th scope="row">条件</th>
+                  <td>球場、風、雨、日程を確認</td>
+                  <td>長打や守備への影響を補正する</td>
+                  <td>天候の変化と中断</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="guide-caption">
+            表は記録方法を説明するための例です。実際の成績や開催情報は、各記事に記載した公式の確認先で更新状況を確認してください。
+          </p>
+        </section>
+
+        <section className="guide-summary guide-workflow" aria-labelledby="guide-workflow-title">
+          <div>
+            <p className="guide-section-label">A repeatable process</p>
+            <h2 id="guide-workflow-title">判断の手順を毎回そろえる</h2>
+          </div>
+          <ol>
+            {workflow.map((step) => (
+              <li key={step.title}>
+                <strong>{step.title}</strong>
+                <span>{step.body}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         <section className="guide-section">
           <h2>予想を組み立てる順序</h2>
